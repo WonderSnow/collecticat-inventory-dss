@@ -162,7 +162,8 @@ return true;
 
 })
 ->asHtml()
-->sortable(),
+->sortable()
+->exceptOnForms(),
 
         Text::make("Search Keywords", "search_keyword")
             ->hideFromIndex()
@@ -184,6 +185,11 @@ return true;
         Number::make("Current Stock", "current_stock")
             ->rules('required','integer','min:0')
             ->sortable(),
+        Text::make('Name')
+            ->sortable()
+            ->rules('required', 'max:255')
+            ->onlyOnForms(),
+
     ];
 }
 
