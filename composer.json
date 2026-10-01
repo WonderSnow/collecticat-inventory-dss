@@ -9,6 +9,10 @@
     "license": "MIT",
     "repositories": [
         {
+        "type": "path",
+        "url": "./nova-components/QuotaProgressBar"
+    },
+        {
             "type": "path",
             "url": "./repos"
         },
@@ -19,6 +23,10 @@
         {
             "type": "path",
             "url": "./nova-components/SalesTrend"
+        },
+        {
+            "type": "path",
+            "url": "./nova-components/QuotaProgressBar"
         }
     ],
     "require": {
@@ -41,7 +49,8 @@
         "signifly/nova-progressbar-card": "^0.2.1",
         "spatie/laravel-backup": "^6.16",
         "spatie/laravel-permission": "^5.3",
-        "spatie/nova-backup-tool": "^4.1"
+        "spatie/nova-backup-tool": "^4.1",
+        "custom/quota-progress-bar": "*"
     },
     "require-dev": {
         "facade/ignition": "^2.5",
@@ -53,15 +62,17 @@
     },
     "autoload": {
         "psr-4": {
-            "App\\": "app/",
-            "Database\\Factories\\": "database/factories/",
-            "Database\\Seeders\\": "database/seeders/"
-        }
+        "App\\": "app/",
+        "Database\\Factories\\": "database/factories/",
+        "Database\\Seeders\\": "database/seeders/",
+        "Custom\\QuotaProgressBar\\": "nova-components/QuotaProgressBar/src/"
+    }
     },
     "autoload-dev": {
         "psr-4": {
             "Tests\\": "tests/"
         }
+        
     },
     "scripts": {
         "post-autoload-dump": [

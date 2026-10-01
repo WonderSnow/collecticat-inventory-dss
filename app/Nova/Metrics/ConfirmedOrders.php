@@ -31,9 +31,6 @@ class ConfirmedOrders extends Value
             60 => __('60 Days'),
             365 => __('365 Days'),
             'TODAY' => __('Today'),
-            'MTD' => __('Month To Date'),
-            'QTD' => __('Quarter To Date'),
-            'YTD' => __('Year To Date'),
         ];
     }
 

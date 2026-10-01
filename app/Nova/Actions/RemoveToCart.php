@@ -4,6 +4,7 @@ namespace App\Nova\Actions;
 
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Http\Request;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Support\Collection;
 use Laravel\Nova\Actions\Action;
@@ -14,7 +15,6 @@ use Illuminate\Support\Facades\Auth;
 
 class RemoveToCart extends Action
 {
-    
     use InteractsWithQueue, Queueable;
 
     public $name = 'Cancel Order';
@@ -25,15 +25,37 @@ class RemoveToCart extends Action
 
     public $confirmButtonText = 'Continue';
 
+    /**
+     * Determine if the action can be run by the given request.
+     */
+    public function authorizedToRun(Request $request, $model)
+    {
+        return in_array($request->user()->role, [
+            \App\Models\User::ROLE_ADMIN,
+            \App\Models\User::ROLE_EMPLOYEE,
+        ]);
+    }
+
+    /**
+     * Determine if the action should be visible for the given request.
+     */
+    public function authorizedToSee(Request $request)
+    {
+        return in_array($request->user()->role, [
+            \App\Models\User::ROLE_ADMIN,
+            \App\Models\User::ROLE_EMPLOYEE,
+        ]);
+    }
+
     public function shownOnTableRow()
     {
         return true;
     }
 
     public function actionClass()
-{
-    return 'btn btn-danger';
-}
+    {
+        return 'btn btn-danger';
+    }
 
     /**
      * Perform the action on the given models.
@@ -43,64 +65,64 @@ class RemoveToCart extends Action
      * @return mixed
      */
     public function handle(ActionFields $fields, Collection $models)
-{
-    return DB::transaction(function () use ($models) {
+    {
+        return DB::transaction(function () use ($models) {
 
-        $pendingOrder = \App\Models\Order::where('employee_id', auth()->id())
-            ->where('status', \App\Models\Order::STATUS_PENDING)
-            ->first();
-
-        if (!$pendingOrder) {
-            return Action::danger('No pending order found.');
-        }
-
-        foreach ($models as $model) {
-
-            InventoryAudit::create([
-                'product_id' => $model->id,
-                'user_id' => Auth::id(),
-                'card_name' => $model->name ?? 'Deleted Product',
-                'action' => 'order_canceled'
-            ]);
-
-            $orderItem = \App\Models\OrderItem::where('order_id', $pendingOrder->id)
-                ->where('product_id', $model->id)
+            $pendingOrder = \App\Models\Order::where('employee_id', auth()->id())
+                ->where('status', \App\Models\Order::STATUS_PENDING)
                 ->first();
 
-            if ($orderItem) {
-
-                $qty = $orderItem->qty;
-
-// Restore stock
-$model->current_stock += $qty;
-
-// Reduce stockout
-$model->stockout -= $qty;
-
-// Safety protections
-if ($model->stockout < 0) {
-    $model->stockout = 0;
-}
-
-if ($model->current_stock > $model->default_stock) {
-    $model->current_stock = $model->default_stock;
-}
-
-$model->save();
-
-                // Remove item from the order
-                $orderItem->delete();
+            if (!$pendingOrder) {
+                return Action::danger('No pending order found.');
             }
-        }
 
-        // Delete order if empty
-        if ($pendingOrder->orderItems()->count() === 0) {
-            $pendingOrder->delete();
-        }
+            foreach ($models as $model) {
 
-        return Action::message('Order cancelled successfully.');
-    });
-}
+                InventoryAudit::create([
+                    'product_id' => $model->id,
+                    'user_id' => Auth::id(),
+                    'card_name' => $model->name ?? 'Deleted Product',
+                    'action' => 'order_canceled'
+                ]);
+
+                $orderItem = \App\Models\OrderItem::where('order_id', $pendingOrder->id)
+                    ->where('product_id', $model->id)
+                    ->first();
+
+                if ($orderItem) {
+
+                    $qty = $orderItem->qty;
+
+                    // Restore stock
+                    $model->current_stock += $qty;
+
+                    // Reduce stockout
+                    $model->stockout -= $qty;
+
+                    // Safety protections
+                    if ($model->stockout < 0) {
+                        $model->stockout = 0;
+                    }
+
+                    if ($model->current_stock > $model->default_stock) {
+                        $model->current_stock = $model->default_stock;
+                    }
+
+                    $model->save();
+
+                    // Remove item from the order
+                    $orderItem->delete();
+                }
+            }
+
+            // Delete order if empty
+            if ($pendingOrder->orderItems()->count() === 0) {
+                $pendingOrder->delete();
+            }
+
+            return Action::message('Order cancelled successfully.');
+        });
+    }
 
     /**
      * Get the fields available on the action.

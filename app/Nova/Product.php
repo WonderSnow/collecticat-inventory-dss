@@ -20,6 +20,7 @@ use App\Services\GoogleSheetService;
 class Product extends Resource
 {
     public static $group = "";
+
     public static function authorizedToCreate(Request $request)
     {
         if (auth()->user()->role === \App\Models\User::ROLE_ADMIN) {
@@ -27,15 +28,27 @@ class Product extends Resource
         }
         return false;
     }
+
     public function authorizedToUpdate(Request $request)
 {
-return true;
+    // Always allow Admins
+    if ($request->user()?->role === \App\Models\User::ROLE_ADMIN) {
+        return true;
+    }
+
+    // Allow Employees ONLY when executing Nova actions
+    if ($request->is('nova-api/*/action*')) {
+        return true;
+    }
+
+    return false;
 }
 
     public function authorizedToDelete(Request $request)
     {
         return false;
     }
+
     /**
      * The model the resource corresponds to.
      *
@@ -48,11 +61,10 @@ return true;
      *
      * @var string
      */
-
     public function title()
-{
-    return "$this->name (Category: $this->category, Price: $this->price)";
-}
+    {
+        return "$this->name (Category: $this->category, Price: $this->price)";
+    }
 
     /**
      * The columns that should be searched.
@@ -60,13 +72,13 @@ return true;
      * @var array
      */
     public static $search = [
-    "name",
-    "sheet_id",
-    "category",
-    "card_set_category",
-    "remarks",
-    "search_keyword"
-];
+        "name",
+        "sheet_id",
+        "category",
+        "card_set_category",
+        "remarks",
+        "search_keyword"
+    ];
 
     /**
      * Get the fields displayed by the resource.
@@ -75,123 +87,122 @@ return true;
      * @return array
      */
     public function fields(Request $request)
-{
-    return [
-        Text::make("PID", "sheet_id")
-            ->sortable(),
-        Select::make("Type", "category")
-            ->options([
-                \App\Models\Product::CATEGORY_SINGLE => "Single",
-                \App\Models\Product::CATEGORY_BUNDLE => "Bundle",
-            ])
-            ->rules("required")
-            ->sortable(),
+    {
+        return [
+            Text::make("PID", "sheet_id")
+                ->sortable(),
 
-        Text::make("Category", "card_set_category")
-            ->rules(["required"])
-            ->sortable(),
+            Select::make("Type", "category")
+                ->options([
+                    \App\Models\Product::CATEGORY_SINGLE => "Single",
+                    \App\Models\Product::CATEGORY_BUNDLE => "Bundle",
+                ])
+                ->rules("required")
+                ->sortable(),
 
-        Text::make("Photo", function () {
-            $img = $this->image;
-            return $img ? '<img src="' . $img . '" width="80">' : "";
-        })->asHtml(),
+            Text::make("Category", "card_set_category")
+                ->rules(["required"])
+                ->sortable(),
 
-        Text::make("Image", "image")
-            ->rules(["required"])
-            ->onlyOnForms(),
+            Text::make("Photo", function () {
+                $img = $this->image;
+                return $img ? '<img src="' . $img . '" width="80">' : "";
+            })->asHtml(),
 
-        Text::make("Name", function () {
+            Text::make("Image", "image")
+                ->rules(["required"])
+                ->onlyOnForms(),
 
-    $name = $this->name ?? "Unnamed Product";
+            Text::make("Name", function () {
+                $name = $this->name ?? "Unnamed Product";
 
-    // =========================
-    // SINGLE CARDS
-    // =========================
-    if ($this->category === \App\Models\Product::CATEGORY_SINGLE) {
+                // =========================
+                // SINGLE CARDS
+                // =========================
+                if ($this->category === \App\Models\Product::CATEGORY_SINGLE) {
+                    $rarity = $this->rarity;
+                    $treatment = $this->card_set_treatment;
 
-        $rarity = $this->rarity;
-        $treatment = $this->card_set_treatment;
+                    if ($rarity || $treatment) {
+                        $tooltip = '';
 
-        if ($rarity || $treatment) {
+                        if ($rarity) {
+                            $tooltip .= 'Rarity: ' . $rarity;
+                        }
 
-            $tooltip = '';
+                        if ($treatment) {
+                            $tooltip .= ($tooltip ? "\n" : '') . 'Card Treatment: ' . $treatment;
+                        }
 
-            if ($rarity) {
-                $tooltip .= 'Rarity: ' . $rarity;
-            }
+                        return '<span title="' . e($tooltip) . '" style="cursor: help; white-space: pre-line;">'
+                            . e($name) .
+                        '</span>';
+                    }
 
-            if ($treatment) {
-                $tooltip .= ($tooltip ? "\n" : '') . 'Card Treatment: ' . $treatment;
-            }
+                    return e($name);
+                }
 
-            return '<span title="' . e($tooltip) . '" style="cursor: help; white-space: pre-line;">'
-                . e($name) .
-            '</span>';
-        }
+                // =========================
+                // BUNDLES
+                // =========================
+                static $rarities = null;
 
-        return e($name);
-    }
+                if ($rarities === null) {
+                    $service = app(\App\Services\GoogleSheetService::class);
+                    $rarities = $service->getAllBundleRarities();
+                }
 
-    // =========================
-    // BUNDLES
-    // =========================
-    static $rarities = null;
+                $sheetCategory = strtolower($this->card_set_category ?? '');
+                $bundleRarity = null;
 
-    if ($rarities === null) {
-        $service = app(\App\Services\GoogleSheetService::class);
-        $rarities = $service->getAllBundleRarities();
-    }
+                foreach ($rarities as $sheetName => $sheetRarity) {
+                    if (str_contains($sheetCategory, strtolower($sheetName))) {
+                        $bundleRarity = $sheetRarity;
+                        break;
+                    }
+                }
 
-    $sheetCategory = strtolower($this->card_set_category ?? '');
-    $bundleRarity = null;
+                if ($bundleRarity) {
+                    return '<span title="' . e($bundleRarity) . '" style="cursor: help;">'
+                        . e($name) .
+                    '</span>';
+                }
 
-    foreach ($rarities as $sheetName => $sheetRarity) {
-        if (str_contains($sheetCategory, strtolower($sheetName))) {
-            $bundleRarity = $sheetRarity;
-            break;
-        }
-    }
-
-    if ($bundleRarity) {
-    return '<span title="' . e($bundleRarity) . '" style="cursor: help;">'
-        . e($name) .
-    '</span>';
-}
-
-    return e($name);
-
-})
-->asHtml()
-->sortable()
-->exceptOnForms(),
-
-        Text::make("Search Keywords", "search_keyword")
-            ->hideFromIndex()
-            ->rules(["required"])
-            ->sortable(),
-
-        Currency::make("Price")
+                return e($name);
+            })
+            ->asHtml()
             ->sortable()
-            ->rules("required", "min:0"),
+            ->exceptOnForms(),
 
-        Number::make('Default Stock', 'default_stock')
-            ->rules('required','integer','min:0')
-            ->sortable(),
+            Text::make("Search Keywords", "search_keyword")
+                ->hideFromIndex()
+                ->rules(["required"])
+                ->sortable(),
 
-        Number::make("Stockout", "stockout")
-            ->sortable()
-            ->help('Number of items requested exceeding available stock.'),
+            Currency::make("Price")
+                ->sortable()
+                ->rules("required", "min:0"),
 
-        Number::make("Current Stock", "current_stock")
-            ->rules('required','integer','min:0')
-            ->sortable(),
-        Text::make('Name')
-            ->sortable()
-            ->rules('required', 'max:255')
-            ->onlyOnForms(),
+            Number::make('Default Stock', 'default_stock')
+                ->rules('required','integer','min:0')
+                ->sortable()
+                ->hideFromIndex(),
 
-    ];
-}
+            Number::make("Stockout", "stockout")
+                ->sortable()
+                ->help('Number of items requested exceeding available stock.')
+                ->hideFromIndex(),
+
+            Number::make("Current Stock", "current_stock")
+                ->rules('required','integer','min:0')
+                ->sortable(),
+
+            Text::make('Name')
+                ->sortable()
+                ->rules('required', 'max:255')
+                ->onlyOnForms(),
+        ];
+    }
 
     /**
      * Get the cards available for the request.
@@ -232,52 +243,44 @@ return true;
      * @param  \Illuminate\Http\Request  $request
      * @return array
      */
-   public function actions(Request $request)
-{
-    $actions = [];
-
-    // 1. Handle the active action execution payload
-    if ($request->has("action")) {
-        return [
-            AddToCart::make(),
-            RemoveToCart::make(),
-            new \App\Nova\Actions\SyncProducts,
-            SyncDatabase::make()->standalone(),
-            new \App\Nova\Actions\ResetStockout,
-        ];
-    }
-
-    // 2. Inline Row / Cart Actions logic
-    if ($this->resource->exists) {
-        $INSIDE_CART = $this->orderItems()
-            ->whereHas("order", function ($query) {
-                $query->where("employee_id", auth()->id())
-                      ->whereIn("status", [\App\Models\Order::STATUS_PENDING]);
-                })
-            ->exists();
-
-        if ($INSIDE_CART) {
-            $actions[] = RemoveToCart::make();
-        } elseif ($this->current_stock > 0) {
-            $actions[] = AddToCart::make();
+    public function actions(Request $request)
+    {
+        // Handle action execution requests
+        if ($request->has("action")) {
+            return [
+                AddToCart::make()->onlyOnTableRow(),
+                RemoveToCart::make()->onlyOnTableRow(),
+            ];
         }
+
+        $actions = [];
+
+        // Inline Row / Cart Actions logic
+        if ($this->resource->exists) {
+            $INSIDE_CART = $this->orderItems()
+                ->whereHas("order", function ($query) {
+                    $query->where("employee_id", auth()->id())
+                          ->whereIn("status", [\App\Models\Order::STATUS_PENDING]);
+                })
+                ->exists();
+
+            if ($INSIDE_CART) {
+                $actions[] = RemoveToCart::make()->onlyOnTableRow();
+            } elseif ($this->current_stock > 0) {
+                $actions[] = AddToCart::make()->onlyOnTableRow();
+            }
+        }
+
+        return $actions;   
     }
 
-    // 3. Populate actions globally so Nova has access to them on the frontend.
-    // We add 'onlyOnIndex' context checks or leverage default behaviors so Nova handles the visibility toggle natively.
-    $actions[] = SyncDatabase::make()->standalone(); 
-    $actions[] = (new \App\Nova\Actions\SyncProducts)->onlyOnIndex();
-    $actions[] = (new \App\Nova\Actions\ResetStockout)->onlyOnIndex();
+    public static function indexQuery(NovaRequest $request, $query)
+    {
+        return $query;
+    }
 
-    return $actions;   
-}
-public static function indexQuery(NovaRequest $request, $query)
-{
-    return $query;
-}
-public static function availableForNavigation(Request $request)
-{
-    return true;
-}
-
+    public static function availableForNavigation(Request $request)
+    {
+        return true;
+    }
 }

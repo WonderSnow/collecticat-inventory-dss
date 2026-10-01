@@ -9,7 +9,9 @@
         "prod": "npm run production",
         "production": "mix --production",
         "build-sales-trend": "cd nova-components/SalesTrend && npm run dev",
-        "build-sales-trend-prod": "cd nova-components/SalesTrend && npm run prod"
+        "build-sales-trend-prod": "cd nova-components/SalesTrend && npm run prod",
+        "build-quota-progress-bar": "cd nova-components/QuotaProgressBar && npm run dev",
+        "build-quota-progress-bar-prod": "cd nova-components/QuotaProgressBar && npm run prod"
     },
     "devDependencies": {
         "axios": "^0.21",

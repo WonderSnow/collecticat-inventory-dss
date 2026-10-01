@@ -39,7 +39,7 @@ class NovaServiceProvider extends NovaApplicationServiceProvider
         // Add any other resources you have
     ]);
         parent::boot();
-        Nova::style('custom-nova-styles', public_path('css/custom-nova.css'));
+        Nova::style('custom-nova-style', asset('css/nova-custom.css'));
         NovaSettings::addSettingsFields([
             Image::make('Logo'),
         ]);
@@ -78,42 +78,43 @@ class NovaServiceProvider extends NovaApplicationServiceProvider
      * @return array`
      */
     protected function cards()
-    {
+{
+    $orderToday = \App\Models\Order::whereStatus(\App\Models\Order::STATUS_CONFIRMED)
+        ->whereEmployeeId(auth()->user()->id)
+        ->whereDate('created_at', now())
+        ->count();
 
-        $orderToday = \App\Models\Order::whereStatus(\App\Models\Order::STATUS_CONFIRMED)->whereEmployeeId(auth()->user()->id)
-            ->whereDate('created_at', now())
-            ->count();
+    $quota = auth()->user()->quota ?? 0;
 
-        $quota = auth()->user()->quota ?? 0;
-
-$quota_percentage = 0;
-
-if ($quota > 0) {
-    $quota_percentage = $orderToday / $quota;
-}
-        return [
-            (new \Richardkeep\NovaTimenow\NovaTimenow)->timezones([
-                'Africa/Nairobi',
-                'America/Mexico_City',
-                'Australia/Sydney',
-                'Europe/Paris',
-                'Asia/Manila',
-                'Asia/Tokyo',
-            ])->defaultTimezone('Africa/Manila')
-            ->canSee(function () {
-                return config('novax.time_enabled');
-            })->width('1/3'),
-            Products::make()->width('1/3'),
-            PendingOrders::make()->width('1/3'),
-            ConfirmedOrders::make()->width('1/3'),
-            // Quotas::make(),
-            ProductCategories::make()->width('1/3'),
-            Users::make()->width('1/3'),
-            OrdersTrend::make()->width('2/3'),
-            (new ProgressBar)->options(['title' => 'Daily Quota', 'percentage' => $quota_percentage])
-                ->width('1/4')
-        ];
+    $quota_percentage = 0;
+    if ($quota > 0) {
+        $quota_percentage = $orderToday / $quota;
     }
+
+    return [
+        (new \Richardkeep\NovaTimenow\NovaTimenow)->timezones([
+            'Africa/Nairobi',
+            'America/Mexico_City',
+            'Australia/Sydney',
+            'Europe/Paris',
+            'Asia/Manila',
+            'Asia/Tokyo',
+        ])->defaultTimezone('Africa/Manila')
+        ->canSee(function () {
+            return config('novax.time_enabled');
+        })->width('1/3'),
+
+        Products::make()->withMeta(['name' => 'Products Transferred into the System'])->width('1/3'),
+        PendingOrders::make()->width('1/3'),
+        ConfirmedOrders::make()->width('1/3'),
+        ProductCategories::make()->width('1/3'),
+
+        (new ProgressBar)->options([
+    'title' => "Daily Quota: {$quota} | Sold: {$orderToday}",
+    'percentage' => $quota_percentage,
+])->width('1/3')
+    ];
+}
 
     /**
      * Get the extra dashboards that should be displayed on the Nova dashboard.

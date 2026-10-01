@@ -1,26 +1,20 @@
-/* Target the action confirmation play button specifically */
-button[title="Run Action"], 
+/* 1. Hide the standalone/index Action Selector & Run Button Container */
+[data-testid="actions-dropdown"],
+button[title="Run Action"],
 button[aria-label="Run Action"],
-.w-action-trigger button {
-    width: auto !important;
-    padding-left: 1rem !important;
-    padding-right: 1rem !important;
-    display: inline-flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-}
-
-/* Hide the default tiny SVG play icon */
-button[title="Run Action"] svg,
-button[aria-label="Run Action"] svg {
+.w-action-trigger {
     display: none !important;
 }
 
-/* Inject the text in its place */
-button[title="Run Action"]::after,
-button[aria-label="Run Action"]::after {
-    content: "Run Action";
-    font-weight: 600;
-    font-size: 0.875rem; /* text-sm equivalent */
-    color: #ffffff;
+/* 2. Hide the entire action bar container if empty spaces remain */
+div:has(> [data-testid="actions-dropdown"]),
+div:has(> button[aria-label="Run Action"]) {
+    display: none !important;
+}
+
+/* 3. Hide the main checkbox column in the table header & body if bulk actions aren't needed */
+th.td-checkbox,
+td.td-checkbox,
+input[type="checkbox"][aria-label="Select All"] {
+    display: none !important;
 }

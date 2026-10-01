@@ -3,6 +3,7 @@
 namespace App\Nova\Actions;
 
 use Illuminate\Bus\Queueable;
+use Illuminate\Http\Request;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Support\Collection;
 use Laravel\Nova\Actions\Action;
@@ -13,11 +14,33 @@ class AddToCart extends Action
 {
     use InteractsWithQueue, Queueable;
 
-    public $name = 'Validate Order';
+    public $name = 'Add To Order';
 
     public $confirmText = 'Would you like to verify the order?';
 
     public $confirmButtonText = 'Continue';
+
+    /**
+     * Determine if the action can be run by the given request.
+     */
+    public function authorizedToRun(Request $request, $model)
+    {
+        return in_array($request->user()->role, [
+            \App\Models\User::ROLE_ADMIN,
+            \App\Models\User::ROLE_EMPLOYEE,
+        ]);
+    }
+
+    /**
+     * Determine if the action should be visible for the given request.
+     */
+    public function authorizedToSee(Request $request)
+    {
+        return in_array($request->user()->role, [
+            \App\Models\User::ROLE_ADMIN,
+            \App\Models\User::ROLE_EMPLOYEE,
+        ]);
+    }
 
     public function shownOnTableRow()
     {

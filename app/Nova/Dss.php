@@ -14,6 +14,7 @@ use Laravel\Nova\Fields\Currency;
 use Laravel\Nova\Fields\Image;
 use Laravel\Nova\Fields\Sparkline;
 use Laravel\Nova\Http\Requests\NovaRequest;
+use App\Nova\Actions\RestockProduct;
 
 class Dss extends Resource
 {
@@ -30,11 +31,19 @@ class Dss extends Resource
         return false;
     }
     public function authorizedToUpdate(Request $request)
-    {
-        if (auth()->user()->role === \App\Models\User::ROLE_ADMIN) return false;
-        if ($request->has('action')) return true;
+{
+    // Allow Nova actions for all authorized users
+    if (auth()->user()->role === \App\Models\User::ROLE_ADMIN) {
+        return true;
+    }
+
+    // Otherwise forbid standard inline updates for Admin
+    if (auth()->user()->role === \App\Models\User::ROLE_ADMIN) {
         return false;
     }
+
+    return false;
+}
 
     public function authorizedToDelete(Request $request)
     {
@@ -227,6 +236,7 @@ class Dss extends Resource
     {
         return [
             RunInventoryForecast::make()->standalone(),
+            new RestockProduct,
         ];
     }
 }
