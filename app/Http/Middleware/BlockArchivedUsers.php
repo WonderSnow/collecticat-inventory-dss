@@ -10,7 +10,7 @@ class BlockArchivedUsers
 {
     public function handle(Request $request, Closure $next)
     {
-        if (Auth::check() && Auth::user()->status === 'ARCHIVE') {
+        if (Auth::check() && in_array(Auth::user()->status, ['ARCHIVE', 'DISACTIVATE'])) {
             Auth::logout();
 
             $request->session()->invalidate();

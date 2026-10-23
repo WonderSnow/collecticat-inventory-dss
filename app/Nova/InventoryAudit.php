@@ -11,21 +11,23 @@ use Laravel\Nova\Fields\DateTime;
 
 class InventoryAudit extends Resource
 {
-public static $group = "Records";
-public static function label()
-{
-    return 'Audit Trail';
-}
+    public static $group = "Records";
+    
+    public static function label()
+    {
+        return 'Audit Trail';
+    }
 
-public static function singularLabel()
-{
-    return 'Audit Record';
-}
+    public static function singularLabel()
+    {
+        return 'Audit Record';
+    }
 
     public static function availableForNavigation(Request $request)
     {
         return auth()->user()->role === \App\Models\User::ROLE_ADMIN;
     }
+
     public function authorizedToUpdate(Request $request)
     {
         if ($request->has('action')) return true;
@@ -33,9 +35,9 @@ public static function singularLabel()
     }
 
     public static function authorizedToCreate(\Illuminate\Http\Request $request)
-{
-    return false;
-}
+    {
+        return false;
+    }
 
     public function authorizedToDelete(Request $request)
     {
@@ -64,6 +66,9 @@ public static function singularLabel()
      */
     public static $search = [
         'id',
+        'card_name',
+        'changes',
+        'action',
     ];
 
     /**
@@ -73,67 +78,77 @@ public static function singularLabel()
      * @return array
      */
     public function fields(Request $request)
-{
-    return [
-        ID::make()->sortable(),
+    {
+        return [
+            ID::make()->sortable(),
 
-        Text::make('Card Name', 'card_name'),
+            Text::make('Card Name', 'card_name'),
 
-        Text::make('Action'),
+            Text::make('Action', function () {
+                $action = $this->action;
 
-        Text::make('Changes', function () {
+                // Explicitly check if the action represents a sale/order confirmation
+                if (in_array(strtolower($action), ['sold', 'order confirmed', 'confirmed'])) {
+                    return 'Sold';
+                }
 
-    $changes = $this->changes;
+                return ucfirst($action);
+            }),
 
-    if (is_string($changes)) {
-        $changes = json_decode($changes, true);
+            Text::make('Changes', function () {
+                // If the product was just created, display this custom message
+                if (strtolower($this->action) === 'created') {
+                    return '<span style="opacity:0.8;">All changes are applied.</span>';
+                }
+
+                $changes = $this->changes;
+
+                if (is_string($changes)) {
+                    $changes = json_decode($changes, true);
+                }
+
+                if (!$changes || !is_array($changes)) {
+                    return '<span style="opacity:0.6;">No changes</span>';
+                }
+
+                $output = [];
+
+                foreach ($changes as $field => $values) {
+                    if (isset($values['old']) && isset($values['new'])) {
+                        $old = $values['old'];
+                        $new = $values['new'];
+
+                        // Convert URLs into clickable labels
+                        if (filter_var($old, FILTER_VALIDATE_URL)) {
+                            $old = "<a href='{$old}' target='_blank' style='color:#60a5fa;'>Old</a>";
+                        }
+
+                        if (filter_var($new, FILTER_VALIDATE_URL)) {
+                            $new = "<a href='{$new}' target='_blank' style='color:#34d399;'>New</a>";
+                        }
+
+                        $output[] = "
+                            <div style='margin-bottom:4px;'>
+                                <strong>" . ucfirst($field) . ":</strong>
+                                <span>{$old}</span>
+                                <span style='opacity:0.6;'>→</span>
+                                <span>{$new}</span>
+                            </div>
+                        ";
+                    }
+                }
+
+                return implode('', $output);
+            })
+            ->onlyOnIndex()
+            ->sortable(false)
+            ->asHtml(),
+
+            BelongsTo::make('User', 'user', User::class),
+
+            DateTime::make('Created At'),
+        ];
     }
-
-    if (!$changes || !is_array($changes)) {
-        return '<span style="opacity:0.6;">No changes</span>';
-    }
-
-    $output = [];
-
-    foreach ($changes as $field => $values) {
-
-        if (isset($values['old']) && isset($values['new'])) {
-
-            $old = $values['old'];
-            $new = $values['new'];
-
-            // Convert URLs into clickable labels
-            if (filter_var($old, FILTER_VALIDATE_URL)) {
-                $old = "<a href='{$old}' target='_blank' style='color:#60a5fa;'>Old</a>";
-            }
-
-            if (filter_var($new, FILTER_VALIDATE_URL)) {
-                $new = "<a href='{$new}' target='_blank' style='color:#34d399;'>New</a>";
-            }
-
-            $output[] = "
-                <div style='margin-bottom:4px;'>
-                    <strong>" . ucfirst($field) . ":</strong>
-                    <span>{$old}</span>
-                    <span style='opacity:0.6;'>→</span>
-                    <span>{$new}</span>
-                </div>
-            ";
-        }
-    }
-
-    return implode('', $output);
-
-})
-->onlyOnIndex()
-->sortable(false)
-->asHtml(),
-
-        BelongsTo::make('User', 'user', User::class),
-
-        DateTime::make('Created At'),
-    ];
-}
 
     /**
      * Get the cards available for the request.
@@ -147,7 +162,7 @@ public static function singularLabel()
     }
 
     /**
-     * Get the filters available for the resource.
+     * Get the filters available for the request.
      *
      * @param  \Illuminate\Http\Request  $request
      * @return array
@@ -158,7 +173,7 @@ public static function singularLabel()
     }
 
     /**
-     * Get the lenses available for the resource.
+     * Get the lenses available for the request.
      *
      * @param  \Illuminate\Http\Request  $request
      * @return array
@@ -178,9 +193,10 @@ public static function singularLabel()
     {
         return [];
     }
+
     public static function authorizedToViewAny(Request $request)
-{
-    \Log::info('InventoryAudit::authorizedToViewAny - attempting to view InventoryAudit resource');
-    return true;
-}
+    {
+        \Log::info('InventoryAudit::authorizedToViewAny - attempting to view InventoryAudit resource');
+        return true;
+    }
 }

@@ -6,6 +6,8 @@ use Illuminate\Http\Request;
 use Laravel\Nova\Http\Controllers\LoginController as ControllersLoginController;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\ValidationException;
+use App\Models\User;
+use Illuminate\Support\Facades\Hash;
 
 class LoginController extends ControllersLoginController
 {
@@ -17,25 +19,15 @@ class LoginController extends ControllersLoginController
      */
     protected function attemptLogin(Request $request)
     {
-        // First, let Nova/Laravel attempt the standard login
-        $loggedos = parent::attemptLogin($request);
+        // 1. Find the user by email first
+        $user = User::where($this->username(), $request->input($this->username()))->first();
 
-        if ($loggedos) {
-            $user = Auth::user();
-
-            // If the user is archived, log them out immediately and fail login
-            if ($user && $user->status === 'ARCHIVE') {
-                Auth::logout();
-
-                $request->session()->invalidate();
-                $request->session()->regenerateToken();
-
-                throw ValidationException::withMessages([
-                    username() => [trans('auth.failed')],
-                ]);
-            }
+        // 2. If user exists, check if they are DISACTIVATE or ARCHIVE
+        if ($user && in_array($user->status, ['ARCHIVE', 'DISACTIVATE'])) {
+            return false; // Reject login immediately without checking password or logging them in
         }
 
-        return $loggedos;
+        // 3. Otherwise, proceed with normal Nova/Laravel login attempt
+        return parent::attemptLogin($request);
     }
 }

@@ -77,23 +77,32 @@ class User extends Resource
             Password::make('Password')
                 ->onlyOnForms()
                 ->creationRules('required', 'string', 'min:8')
-                ->updateRules('nullable', 'string', 'min:8'),
+                ->updateRules('nullable', 'string', 'min:8')
+                ->hideWhenUpdating(),
 
             Select::make('Status', 'status')
-                ->options([
-                    'ACTIVE' => 'ACTIVE',
-                    'ARCHIVE' => 'ARCHIVE',
-                ])
-                ->displayUsing(fn ($value) => $value ?? 'ACTIVE')
-                ->resolveUsing(fn ($value) => $value ?? 'ACTIVE')
-                ->rules('required')
-                ->sortable()
-                ->canSee(function ($request) use ($isArchived) {
-                    if ($isArchived && $request->route('resourceId')) {
-                        return false;
-                    }
-                    return true;
-                }),
+    ->options([
+        'ACTIVE' => 'ACTIVE',
+        'DISACTIVATE' => 'DISACTIVATE',
+        'ARCHIVE' => 'ARCHIVE',
+    ])
+    // This controls how it appears on index/detail views ("DISACTIVATED")
+    ->displayUsing(function ($value) {
+        if ($value === 'DISACTIVATE') {
+            return 'DISACTIVATED';
+        }
+        return $value ?? 'ACTIVE';
+    })
+    // This controls how it resolves when loading the form dropdown
+    ->resolveUsing(fn ($value) => $value ?? 'ACTIVE')
+    ->rules('required', 'in:ACTIVE,DISACTIVATE,ARCHIVE')
+    ->sortable()
+    ->canSee(function ($request) use ($isArchived) {
+        if ($isArchived && $request->route('resourceId')) {
+            return false;
+        }
+        return true;
+    }),
 
             Number::make('Quota')
                 ->rules('required', 'integer', 'min:0')
@@ -126,8 +135,11 @@ class User extends Resource
 
     public static function indexQuery(NovaRequest $request, $query)
     {
-        // Hide archived users from the main Users table
-        return $query->where('status', '!=', 'ARCHIVE')->orWhereNull('status');
+        // Show ACTIVE and DISACTIVATE users in the main table, but hide ARCHIVE users
+        return $query->where(function ($q) {
+            $q->where('status', '!=', 'ARCHIVE')
+              ->orWhereNull('status');
+        });
     }
 
     public function cards(Request $request)

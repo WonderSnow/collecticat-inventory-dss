@@ -110,7 +110,7 @@ class NovaServiceProvider extends NovaApplicationServiceProvider
         })->width('1/3'),
 
         Products::make()->withMeta(['name' => 'Products Transferred into the System'])->width('1/3'),
-        PendingOrders::make()->width('1/3'),
+        //PendingOrders::make()->width('1/3'),
         ConfirmedOrders::make()->width('1/3'),
         //ProductCategories::make()->width('1/3'),
 

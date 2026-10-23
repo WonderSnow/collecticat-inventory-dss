@@ -25,20 +25,31 @@ class MarkAsConfirmed extends Action
     public $confirmButtonText = 'Continue';
 
     public function handle(ActionFields $fields, Collection $models)
-{
-    foreach ($models as $order) {
+    {
+        foreach ($models as $order) {
 
-        // Prevent confirming twice
-        if ($order->status === \App\Models\Order::STATUS_CONFIRMED) {
-            return Action::danger('Order already confirmed.');
+            // Prevent confirming twice
+            if ($order->status === \App\Models\Order::STATUS_CONFIRMED) {
+                return Action::danger('Order already confirmed.');
+            }
+
+            $order->status = \App\Models\Order::STATUS_CONFIRMED;
+            $order->save();
+
+            // Deduct product stock and log as 'sold' for the audit trail
+            foreach ($order->orderItems as $item) {
+                $product = $item->product;
+
+                if ($product) {
+                    $product->auditAction = 'sold';
+                    $product->current_stock -= $item->quantity; // Change 'quantity' if your column is named differently
+                    $product->save();
+                }
+            }
         }
 
-        $order->status = \App\Models\Order::STATUS_CONFIRMED;
-        $order->save();
+        return Action::message('Order confirmed successfully.');
     }
-
-    return Action::message('Order confirmed successfully.');
-}
 
     public function fields()
     {

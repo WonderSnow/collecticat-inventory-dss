@@ -19,10 +19,6 @@
     <div class="card">
         <h2>Enter Verification Code</h2>
 
-        @if (session('status'))
-            <div class="success">{{ session('status') }}</div>
-        @endif
-
         <form method="POST" action="{{ route('password.code.verify.submit') }}">
             @csrf
 
@@ -33,10 +29,20 @@
             </div>
 
             <div class="form-group">
-                <label for="code">6-Digit Verification Code</label>
-                <input type="text" id="code" name="code" maxlength="6" required autofocus>
-                @error('code') <div class="error">{{ $message }}</div> @enderror
-            </div>
+    <label for="code">6-Digit Verification Code</label>
+    <input 
+        type="text" 
+        id="code" 
+        name="code" 
+        inputmode="numeric" 
+        pattern="[0-9]*" 
+        minlength="6" 
+        maxlength="6" 
+        required 
+        autofocus
+    >
+    @error('code') <div class="error">{{ $message }}</div> @enderror
+</div>
 
             <div class="form-group">
                 <label for="password">New Password</label>

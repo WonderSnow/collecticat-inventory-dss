@@ -13,32 +13,33 @@ use App\Services\GoogleSheetService;
 
 class Product extends Model
 {
-
     use HasFactory;
 
+    // Temporary attribute to track custom audit action (e.g. 'sold') during runtime updates
+    public $auditAction = null;
+
     public function getPidAttribute()
-{
-    $service = app(GoogleSheetService::class);
+    {
+        $service = app(GoogleSheetService::class);
 
-    $rows = $service->getRows('Sheet1!A2:C1000');
+        $rows = $service->getRows('Sheet1!A2:C1000');
 
-    if (!$rows) {
+        if (!$rows) {
+            return null;
+        }
+
+        foreach ($rows as $row) {
+            $pid = $row[0] ?? null;
+            $name = $row[2] ?? null;
+
+            if ($name === $this->name) {
+                return $pid;
+            }
+        }
+
         return null;
     }
 
-    foreach ($rows as $row) {
-
-        $pid = $row[0] ?? null;
-        $name = $row[2] ?? null;
-
-        if ($name === $this->name) {
-            return $pid;
-        }
-
-    }
-
-    return null;
-}
     const CATEGORY_SINGLE = "Single";
     const CATEGORY_BUNDLE = "Bundle";
 
@@ -65,19 +66,17 @@ class Product extends Model
 
         // When product is created
         static::created(function ($product) {
-
             InventoryAudit::create([
                 'product_id' => $product->id,
                 'user_id' => Auth::id(),
                 'card_name' => $product->name,
-                'action' => 'created'
+                'action' => 'Created',
+                'changes' => 'All fields are new'
             ]);
-
         });
 
         // When product is updated
         static::updating(function ($product) {
-
             $dirty = $product->getDirty();
 
             if (empty($dirty)) {
@@ -87,23 +86,24 @@ class Product extends Model
             $changes = [];
 
             foreach ($dirty as $field => $newValue) {
-
                 $changes[$field] = [
                     'old' => $product->getOriginal($field),
                     'new' => $newValue
                 ];
             }
 
+            // If an explicit audit action (like 'sold') was attached to the model instance, use it.
+            // Otherwise, default to 'edited'.
+            $action = $product->auditAction ?? 'edited';
+
             InventoryAudit::create([
                 'product_id' => $product->id,
                 'user_id' => auth()->id(),
                 'card_name' => $product->name,
-                'action' => 'edited',
+                'action' => $action,
                 'changes' => json_encode($changes)
             ]);
-
         });
-
     }
 
     public function audits()
@@ -138,13 +138,13 @@ class Product extends Model
             return $data;
         });
     }
-    public function hasPendingOrder()
-{
-    return \App\Models\OrderItem::where('product_id', $this->id)
-        ->whereHas('order', function ($q) {
-            $q->where('status', \App\Models\Order::STATUS_PENDING);
-        })
-        ->exists();
-}
 
+    public function hasPendingOrder()
+    {
+        return \App\Models\OrderItem::where('product_id', $this->id)
+            ->whereHas('order', function ($q) {
+                $q->where('status', \App\Models\Order::STATUS_PENDING);
+            })
+            ->exists();
+    }
 }

@@ -29,7 +29,7 @@
     </div>
 
     <button class="w-full btn btn-default btn-primary hover:bg-primary-dark" type="submit">
-        {{ __('Send Password Reset Link') }}
+        {{ __('Confirm Email Address') }}
     </button>
 </form>
 @endsection

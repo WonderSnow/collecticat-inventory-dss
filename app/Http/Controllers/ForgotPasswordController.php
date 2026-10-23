@@ -1,6 +1,6 @@
 <?php
 
-namespace app\Http\Controllers;
+namespace App\Http\Controllers;
 
 use App\Models\User;
 use App\Models\VerificationCode;
@@ -35,7 +35,8 @@ class ForgotPasswordController extends Controller
     }
 
     /**
-     * Send a verification code to the given user.
+     * Proceed to verification form after confirming email exists.
+     * (No automatic code is generated/sent here anymore).
      *
      * @param  \Illuminate\Http\Request  $request
      * @return \Illuminate\Http\RedirectResponse
@@ -52,18 +53,11 @@ class ForgotPasswordController extends Controller
             return back()->withErrors(['email' => __('We can\'t find a user with that email address.')]);
         }
 
-        $code = rand(100000, 999999);
-
-        VerificationCode::create([
-            'user_id' => $user->id,
-            'code' => $code,
-            'expires_at' => now()->addMinutes(15),
-        ]);
-
+        // Store email in session for the next step
         session(['email_for_password_reset' => $user->email]);
 
-        return redirect()->route('password.code.verify.form')
-            ->with('status', __('We have sent a verification code to your email address.'));
+        // Redirect to the code entry form without generating a code or setting a "sent" status message
+        return redirect()->route('password.code.verify.form');
     }
 
     /**
@@ -76,18 +70,19 @@ class ForgotPasswordController extends Controller
     }
 
     /**
-     * Verify the code and update the user's password.
+     * Verify the code against the admin-created code and update the password.
      */
     public function verifyCodeAndResetPassword(Request $request)
     {
         $request->validate([
             'email' => 'required|email|exists:users,email',
-            'code' => 'required|digits:6',
+            'code' => 'required|digits:6|numeric',
             'password' => 'required|min:8|confirmed',
         ]);
 
         $user = User::where('email', $request->email)->first();
 
+        // Checks against the code manually created by the admin in the database
         $verificationCode = VerificationCode::where('user_id', $user->id)
             ->where('code', $request->code)
             ->where('expires_at', '>', now())
