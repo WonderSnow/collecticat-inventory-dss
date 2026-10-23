@@ -54,22 +54,25 @@ class VerificationCode extends Resource
             Date::make('Created Date', 'created_at')
                 ->sortable()
                 ->exceptOnForms(),
+
             Text::make('Is Expired', function () {
                 return $this->expires_at->isPast() ? 'Yes' : 'No';
             })->onlyOnIndex(),
+
             Hidden::make('expires_at', 'expires_at')
                 ->default(function () {
                     return now()->addMinutes(10);
                 }),
+
             BelongsTo::make('User', 'user', User::class)
                 ->sortable(),
-            Text::make('Code')
-                ->sortable()
+
+            Hidden::make('Code', 'code')
                 ->default(function () {
                     return rand(100000, 999999);
                 })
                 ->rules('required', 'max:6')
-                -> readonly(),
+                ->hideWhenUpdating(),
         ];
     }
 
@@ -116,5 +119,4 @@ class VerificationCode extends Resource
     {
         return [];
     }
-    
 }

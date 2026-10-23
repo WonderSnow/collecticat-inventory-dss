@@ -30,19 +30,19 @@ class Product extends Resource
     }
 
     public function authorizedToUpdate(Request $request)
-{
-    // Always allow Admins
-    if ($request->user()?->role === \App\Models\User::ROLE_ADMIN) {
-        return true;
-    }
+    {
+        // Always allow Admins
+        if ($request->user()?->role === \App\Models\User::ROLE_ADMIN) {
+            return true;
+        }
 
-    // Allow Employees ONLY when executing Nova actions
-    if ($request->is('nova-api/*/action*')) {
-        return true;
-    }
+        // Allow Employees ONLY when executing Nova actions
+        if ($request->is('nova-api/*/action*')) {
+            return true;
+        }
 
-    return false;
-}
+        return false;
+    }
 
     public function authorizedToDelete(Request $request)
     {
@@ -90,15 +90,12 @@ class Product extends Resource
     {
         return [
             Text::make("PID", "sheet_id")
+                ->rules(["required"])
                 ->sortable(),
 
-            Select::make("Type", "category")
-                ->options([
-                    \App\Models\Product::CATEGORY_SINGLE => "Single",
-                    \App\Models\Product::CATEGORY_BUNDLE => "Bundle",
-                ])
-                ->rules("required")
-                ->sortable(),
+            // Replaced Type Select field with Card Treatment (only on forms)
+            Text::make("Card Treatment", "card_set_treatment")
+                ->onlyOnForms(),
 
             Text::make("Category", "card_set_category")
                 ->rules(["required"])
@@ -162,8 +159,22 @@ class Product extends Resource
                     }
                 }
 
-                if ($bundleRarity) {
-                    return '<span title="' . e($bundleRarity) . '" style="cursor: help;">'
+                // Fallback to database 'rarity' attribute if not matched from Google Sheet
+                $displayRarity = $bundleRarity ?: $this->rarity;
+                $treatment = $this->card_set_treatment;
+
+                if ($displayRarity || $treatment) {
+                    $tooltip = '';
+
+                    if ($displayRarity) {
+                        $tooltip .= 'Rarity: ' . $displayRarity;
+                    }
+
+                    if ($treatment) {
+                        $tooltip .= ($tooltip ? "\n" : '') . 'Card Treatment: ' . $treatment;
+                    }
+
+                    return '<span title="' . e($tooltip) . '" style="cursor: help; white-space: pre-line;">'
                         . e($name) .
                     '</span>';
                 }
@@ -188,10 +199,9 @@ class Product extends Resource
                 ->sortable()
                 ->hideFromIndex(),
 
-            Number::make("Stockout", "stockout")
-                ->sortable()
-                ->help('Number of items requested exceeding available stock.')
-                ->hideFromIndex(),
+            // Replaced Stockout with Rarity (only on forms)
+            Text::make("Rarity", "rarity")
+                ->onlyOnForms(),
 
             Number::make("Current Stock", "current_stock")
                 ->rules('required','integer','min:0')
@@ -276,7 +286,8 @@ class Product extends Resource
 
     public static function indexQuery(NovaRequest $request, $query)
     {
-        return $query;
+        // Filter out rows where category is 'Bundle'
+        return $query->where('category', '!=', \App\Models\Product::CATEGORY_BUNDLE);
     }
 
     public static function availableForNavigation(Request $request)

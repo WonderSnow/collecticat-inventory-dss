@@ -31,13 +31,13 @@ class NovaServiceProvider extends NovaApplicationServiceProvider
     public function boot()
     {
         Nova::resources([
-        \App\Nova\Product::class,
-        \App\Nova\Order::class,
-        \App\Nova\InventoryAudit::class,
-        \App\Nova\User::class,
-        \App\Nova\VerificationCode::class,
-        // Add any other resources you have
-    ]);
+            \App\Nova\Product::class,
+            \App\Nova\Order::class,
+            \App\Nova\InventoryAudit::class,
+            \App\Nova\User::class,
+            \App\Nova\ArchivedUser::class,
+            \App\Nova\VerificationCode::class,
+        ]);
         parent::boot();
         Nova::style('custom-nova-style', asset('css/nova-custom.css'));
         NovaSettings::addSettingsFields([
@@ -68,6 +68,11 @@ class NovaServiceProvider extends NovaApplicationServiceProvider
     protected function gate()
     {
         Gate::define('viewNova', function ($user) {
+            // Block archived users entirely from accessing the Nova admin panel
+            if ($user->status === 'ARCHIVE') {
+                return false;
+            }
+
             return true;
         });
     }
@@ -75,7 +80,7 @@ class NovaServiceProvider extends NovaApplicationServiceProvider
     /**
      * Get the cards that should be displayed on the default Nova dashboard.
      *
-     * @return array`
+     * @return array
      */
     protected function cards()
 {
@@ -99,7 +104,7 @@ class NovaServiceProvider extends NovaApplicationServiceProvider
             'Europe/Paris',
             'Asia/Manila',
             'Asia/Tokyo',
-        ])->defaultTimezone('Africa/Manila')
+        ])->defaultTimezone('Asia/Manila')
         ->canSee(function () {
             return config('novax.time_enabled');
         })->width('1/3'),
@@ -107,7 +112,7 @@ class NovaServiceProvider extends NovaApplicationServiceProvider
         Products::make()->withMeta(['name' => 'Products Transferred into the System'])->width('1/3'),
         PendingOrders::make()->width('1/3'),
         ConfirmedOrders::make()->width('1/3'),
-        ProductCategories::make()->width('1/3'),
+        //ProductCategories::make()->width('1/3'),
 
         (new ProgressBar)->options([
     'title' => "Daily Quota: {$quota} | Sold: {$orderToday}",
@@ -148,6 +153,10 @@ class NovaServiceProvider extends NovaApplicationServiceProvider
      */
     public function register()
     {
-        //
+        // Bind the old vendor path to your custom controller so Laravel resolves it correctly
+        $this->app->bind(
+            \Laravel\Nova\Http\Controllers\ForgotPasswordController::class, 
+            \App\Http\Controllers\ForgotPasswordController::class
+        );
     }
 }

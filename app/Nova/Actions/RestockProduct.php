@@ -19,7 +19,7 @@ class RestockProduct extends Action
      * @var string
      */
     public $name = 'Increase Current Stock';
-
+    public $confirmButtonText = 'Add Stock(s)';
     /**
      * Perform the action on the given models.
      *

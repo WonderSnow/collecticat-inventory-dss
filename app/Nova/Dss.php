@@ -24,7 +24,7 @@ class Dss extends Resource
         return auth()->user()->role === \App\Models\User::ROLE_ADMIN;
     }
     public static function label () {
-        return "Restocking Support";
+        return "Inventory";
     }
     public static function authorizedToCreate(Request $request)
     {

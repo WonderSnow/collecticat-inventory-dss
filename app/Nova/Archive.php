@@ -14,8 +14,17 @@ use Laravel\Nova\Fields\DateTime;
 class Archive extends Resource
 {
     public static $group = "Records";
-    public static $label = 'Archives';
 
+    // Use these methods to explicitly define the sidebar name and plural label
+    public static function label()
+    {
+        return 'Archived Products';
+    }
+
+    public static function singularLabel()
+    {
+        return 'Archived Product';
+    }
     public function authorizedToUpdate(Request $request)
     {
         if ($request->has('action')) return true;
@@ -107,6 +116,10 @@ public function fields(Request $request)
     public function lenses(Request $request)
     {
         return [];
+    }
+    public function authorizedToDelete(Request $request)
+    {
+        return false;
     }
 
     /**
