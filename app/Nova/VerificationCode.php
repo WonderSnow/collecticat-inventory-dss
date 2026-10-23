@@ -68,7 +68,8 @@ class VerificationCode extends Resource
                 ->default(function () {
                     return rand(100000, 999999);
                 })
-                ->rules('required', 'max:6'),
+                ->rules('required', 'max:6')
+                -> readonly(),
         ];
     }
 
