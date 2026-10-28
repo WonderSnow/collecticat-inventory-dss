@@ -41,6 +41,9 @@ class User extends Resource
         if ($this->resource->exists && isset($this->resource->status) && $this->resource->status === 'ARCHIVE') {
             return false;
         }
+        if ($this->email === 'admin@yopmail.com') {
+            return false;
+        }
 
         return true;
     }
