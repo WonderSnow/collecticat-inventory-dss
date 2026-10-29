@@ -91,22 +91,20 @@ class RemoveToCart extends Action
 
                 if ($orderItem) {
 
-                    $qty = $orderItem->qty;
+                    $qty = $orderItem->qty ?? $orderItem->quantity ?? 0;
 
                     // Restore stock
                     $model->current_stock += $qty;
 
-                    // Reduce stockout
-                    $model->stockout -= $qty;
-
-                    // Safety protections
-                    if ($model->stockout < 0) {
-                        $model->stockout = 0;
+                    // Reduce stockout if column exists
+                    if (isset($model->stockout)) {
+                        $model->stockout -= $qty;
+                        if ($model->stockout < 0) {
+                            $model->stockout = 0;
+                        }
                     }
 
-                    if ($model->current_stock > $model->default_stock) {
-                        $model->current_stock = $model->default_stock;
-                    }
+                    // REMOVED THE CAP THAT FORCES IT TO MATCH DEFAULT STOCK!
 
                     $model->save();
 
