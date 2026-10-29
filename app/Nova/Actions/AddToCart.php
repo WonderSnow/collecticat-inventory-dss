@@ -58,10 +58,16 @@ class AddToCart extends Action
 
         $requestedQty = max(1, (int) $fields->qty);
 
-        // 1️⃣ PRE-CHECK: block if any product has no stock
+        // 1️⃣ PRE-CHECK: block if requested quantity exceeds current stock or if item is out of stock
         foreach ($models as $product) {
-            if ((int) $product->current_stock <= 0) {
+            $currentStock = (int) $product->current_stock;
+
+            if ($currentStock <= 0) {
                 return Action::danger("Cannot validate order: '{$product->name}' is out of stock.");
+            }
+
+            if ($requestedQty > $currentStock) {
+                return Action::danger("Order failed: You requested {$requestedQty} for '{$product->name}', but there is only {$currentStock} left in stock.");
             }
         }
 
@@ -79,7 +85,6 @@ class AddToCart extends Action
 
         // 3️⃣ Process products
         foreach ($models as $product) {
-
             $currentStock = (int) $product->current_stock;
 
             $fulfillableQty = min($requestedQty, $currentStock);

@@ -104,13 +104,6 @@ class Dss extends Resource
 
         return $results;
     }),
-            Select::make('Type', 'category')
-                ->options([
-                    \App\Models\Product::CATEGORY_SINGLE => 'Single',
-                    \App\Models\Product::CATEGORY_BUNDLE => 'Bundle',
-                ])
-                ->rules('required')
-                ->sortable(),
             Text::make('Category', 'card_set_category')->rules(['required'])->sortable(),
             Text::make('Name', function () {
 
@@ -175,15 +168,14 @@ class Dss extends Resource
                     document.getElementById(\"{$id}\").innerHTML = data[this.value];
                 '
                 data-pred='{$jsonData}'
-                style='width:100%; font-size:12px; margin-bottom:4px; padding:2px;
-                       background:#1f2937; color:#e5e7eb; border:1px solid #374151; border-radius:4px;'>
-                <option value='day'>Next Day</option>
-                <option value='week'>Next Week</option>
-                <option value='month'>Next Month</option>
-                <option value='year'>Next Year</option>
+                style='width:100% !important; font-size:12px !important; margin-bottom:4px !important; padding:4px !important; background-color: #000000 !important; color: #ffffff !important; border: 1px solid #374151 !important; border-radius:4px !important;'>
+                <option value='day' style='background-color: #000000; color: #ffffff;'>Next Day</option>
+                <option value='week' style='background-color: #000000; color: #ffffff;'>Next Week</option>
+                <option value='month' style='background-color: #000000; color: #ffffff;'>Next Month</option>
+                <option value='year' style='background-color: #000000; color: #ffffff;'>Next Year</option>
             </select>
 
-            <div id='{$id}' style='text-align:center; font-size:13px; color:#e5e7eb;'>
+            <div id='{$id}' class='dss-prediction-text' style='text-align: center !important; font-size: 16px !important;'>
                 {$data['day']}
             </div>
 
@@ -212,7 +204,9 @@ class Dss extends Resource
      */
     public function filters(Request $request)
     {
-        return [];
+        return [
+            new \App\Nova\Filters\PriceRangeFilter,
+        ];
     }
 
     /**

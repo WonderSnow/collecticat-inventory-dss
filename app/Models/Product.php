@@ -61,50 +61,61 @@ class Product extends Model
     ];
 
     protected static function boot()
-    {
-        parent::boot();
+{
+    parent::boot();
 
-        // When product is created
-        static::created(function ($product) {
-            InventoryAudit::create([
-                'product_id' => $product->id,
-                'user_id' => Auth::id(),
-                'card_name' => $product->name,
-                'action' => 'Created',
-                'changes' => 'All fields are new'
-            ]);
-        });
+    // Check for unique PID (sheet_id) before creating or updating
+    static::saving(function ($product) {
+        if ($product->sheet_id) {
+            $exists = static::where('sheet_id', $product->sheet_id)
+                ->where('id', '!=', $product->id) // Exclude current record on updates
+                ->exists();
 
-        // When product is updated
-        static::updating(function ($product) {
-            $dirty = $product->getDirty();
-
-            if (empty($dirty)) {
-                return;
+            if ($exists) {
+                throw new \Exception("The PID ({$product->sheet_id}) is already assigned to another product.");
             }
+        }
+    });
 
-            $changes = [];
+    // When product is created
+    static::created(function ($product) {
+        InventoryAudit::create([
+            'product_id' => $product->id,
+            'user_id' => Auth::id(),
+            'card_name' => $product->name,
+            'action' => 'Created',
+            'changes' => 'All fields are new'
+        ]);
+    });
 
-            foreach ($dirty as $field => $newValue) {
-                $changes[$field] = [
-                    'old' => $product->getOriginal($field),
-                    'new' => $newValue
-                ];
-            }
+    // When product is updated
+    static::updating(function ($product) {
+        $dirty = $product->getDirty();
 
-            // If an explicit audit action (like 'sold') was attached to the model instance, use it.
-            // Otherwise, default to 'edited'.
-            $action = $product->auditAction ?? 'edited';
+        if (empty($dirty)) {
+            return;
+        }
 
-            InventoryAudit::create([
-                'product_id' => $product->id,
-                'user_id' => auth()->id(),
-                'card_name' => $product->name,
-                'action' => $action,
-                'changes' => json_encode($changes)
-            ]);
-        });
-    }
+        $changes = [];
+
+        foreach ($dirty as $field => $newValue) {
+            $changes[$field] = [
+                'old' => $product->getOriginal($field),
+                'new' => $newValue
+            ];
+        }
+
+        $action = $product->auditAction ?? 'edited';
+
+        InventoryAudit::create([
+            'product_id' => $product->id,
+            'user_id' => auth()->id(),
+            'card_name' => $product->name,
+            'action' => $action,
+            'changes' => json_encode($changes)
+        ]);
+    });
+}
 
     public function audits()
     {

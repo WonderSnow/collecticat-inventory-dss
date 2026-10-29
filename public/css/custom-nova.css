@@ -18,3 +18,34 @@ td.td-checkbox,
 input[type="checkbox"][aria-label="Select All"] {
     display: none !important;
 }
+
+/* --- DSS Predictions Dropdown (Solid Black with Visible Text) --- */
+.dss-select {
+    background-color: #000000 !important;
+    color: #ffffff !important;
+    border: 1px solid #374151 !important;
+}
+
+.dss-select option {
+    background-color: #000000 !important;
+    color: #ffffff !important;
+}
+
+/* Theme text adaptation for predictions */
+.dark .dss-text-container {
+    color: #e5e7eb !important;
+}
+
+:not(.dark) .dss-text-container {
+    color: #111827 !important;
+}
+
+/* --- DSS Prediction Numbers (Light Mode Default) --- */
+.dss-prediction-text {
+    color: #111827 !important; /* Dark text for light mode */
+}
+
+/* --- DSS Prediction Numbers (Dark Mode Override) --- */
+.dark .dss-prediction-text {
+    color: #ffffff !important; /* White text for dark mode */
+}

@@ -38,10 +38,16 @@ class NovaServiceProvider extends NovaApplicationServiceProvider
             \App\Nova\ArchivedUser::class,
             \App\Nova\VerificationCode::class,
         ]);
+        
         parent::boot();
+
+        // 🌟 Add this line to change the Nova navigation bar and title name
+        Nova::name('Collecticat');
+
         Nova::style('custom-nova-style', asset('css/nova-custom.css'));
+        
         NovaSettings::addSettingsFields([
-            Image::make('Logo'),
+            Text::make('Logo URL', 'logo'),
         ]);
     }
 

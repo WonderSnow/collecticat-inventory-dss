@@ -89,8 +89,10 @@ class Product extends Resource
     public function fields(Request $request)
     {
         return [
-            Text::make("PID", "sheet_id")
+            Text::make("Product Identification Digit", "sheet_id")
                 ->rules(["required"])
+                ->creationRules("unique:products,sheet_id")
+                ->updateRules("unique:products,sheet_id,{{resourceId}}")
                 ->sortable(),
 
             // Replaced Type Select field with Card Treatment (only on forms)
@@ -233,7 +235,10 @@ class Product extends Resource
      */
     public function filters(Request $request)
     {
-        return [\App\Nova\Filters\FilterByCategory::make()];
+        return [
+            \App\Nova\Filters\FilterByCategory::make(),
+            new \App\Nova\Filters\PriceRangeFilter,
+        ];
     }
 
     /**
