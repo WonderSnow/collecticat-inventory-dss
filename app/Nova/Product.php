@@ -77,6 +77,8 @@ class Product extends Resource
         "category",
         "card_set_category",
         "remarks",
+        "rarity",
+        "card_set_treatment",
         "search_keyword"
     ];
 
