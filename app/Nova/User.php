@@ -98,6 +98,8 @@ class User extends Resource
     })
     // This controls how it resolves when loading the form dropdown
     ->resolveUsing(fn ($value) => $value ?? 'ACTIVE')
+    ->default('ACTIVE')
+    ->hideWhenCreating()
     ->rules('required', 'in:ACTIVE,DISACTIVATE,ARCHIVE')
     ->sortable()
     ->canSee(function ($request) use ($isArchived) {
