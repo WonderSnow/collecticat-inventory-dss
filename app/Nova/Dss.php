@@ -147,8 +147,8 @@ class Dss extends Resource
         $prediction = $this->predictions()->where('interval', $key)->latest()->first();
 
         if (! $prediction) {
-            $data[$key] = "<span class='text-warning text-xs'>Insufficient Data.</span>";
-        } else {
+    $data[$key] = "<span style='color: #7755ff;' class='text-xs font-medium'>Insufficient Data.</span>";
+} else {
             $sales = $prediction->sales_quantity;
             $rec = $prediction->stock_recommendation;
             $s = $rec > 0 ? '+' : '';
