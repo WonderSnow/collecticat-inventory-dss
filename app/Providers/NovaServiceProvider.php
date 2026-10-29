@@ -30,7 +30,6 @@ class NovaServiceProvider extends NovaApplicationServiceProvider
 
     public function boot()
     {
-        Nova::brandName('Collecticat');
         Nova::resources([
             \App\Nova\Product::class,
             \App\Nova\Order::class,
