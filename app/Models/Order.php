@@ -33,8 +33,11 @@ class Order extends Model
                     DB::transaction(function () use ($order) {
                         foreach ($order->orderItems as $item) {
                             if ($item->product) {
-                                // Add the ordered quantity back to current stock
-                                $item->product->increment('current_stock', $item->qty ?? 0);
+                                // Fallback safely to catch either 'qty' or 'quantity' column names
+                                $quantityToRestore = $item->qty ?? $item->quantity ?? 0;
+
+                                // Add the ordered quantity back to current stock incrementally
+                                $item->product->increment('current_stock', $quantityToRestore);
                             }
                         }
                     });
@@ -67,7 +70,8 @@ class Order extends Model
             ->whereHas('product') 
             ->get()
             ->sum(function ($item) {
-                return ($item->qty ?? 0) * ($item->price ?? 0);
+                $qty = $item->qty ?? $item->quantity ?? 0;
+                return $qty * ($item->price ?? 0);
             });
     }
 }
