@@ -204,8 +204,19 @@ class Product extends Resource
                 ->hideFromIndex(),
 
             // Replaced Stockout with Rarity (only on forms)
-            Text::make("Rarity", "rarity")
-                ->onlyOnForms(),
+            // Replaced Text with Select dropdown for Rarity
+            Select::make("Rarity", "rarity")
+                ->options([
+                    'Mythic' => 'Mythic',
+                    'Rare' => 'Rare',
+                    'Uncommon' => 'Uncommon',
+                    'Common' => 'Common',
+                    'Artifact' => 'Artifact',
+                    'Land' => 'Land',
+                    'Token' => 'Token',
+                ])
+                ->displayUsingLabels()
+                ->rules('required', 'in:Mythic,Rare,Uncommon,Common,Artifact,Land, Token'),
 
             Number::make("Current Stock", "current_stock")
                 ->rules('required','integer','min:0')
