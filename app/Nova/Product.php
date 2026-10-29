@@ -215,7 +215,7 @@ class Product extends Resource
                     'Land' => 'Land',
                     'Token' => 'Token',
                 ])
-                ->displayUsingLabels()
+                ->onlyOnForms()
                 ->rules('required', 'in:Mythic,Rare,Uncommon,Common,Artifact,Land, Token'),
 
             Number::make("Current Stock", "current_stock")
