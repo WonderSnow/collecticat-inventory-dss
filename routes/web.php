@@ -183,6 +183,6 @@ Route::group(['middleware' => function ($request, $next) {
         return redirect('/');
     })->name('logout');
 
-    Route::get('/sales-trend/{product}', [\App\Http\Controllers\ProductController::class, 'salesTrend']);
+    Route::get('/demand-frequency/{product}', [\App\Http\Controllers\ProductController::class, 'salesTrend']);
 
 });

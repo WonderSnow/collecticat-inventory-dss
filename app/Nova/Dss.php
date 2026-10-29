@@ -114,7 +114,7 @@ class Dss extends Resource
         ->exists();
 
     if ($hasSales) {
-        return "<a href='/sales-trend/{$this->id}' class='text-primary font-bold'>$this->name</a>";
+        return "<a href='/demand-frequency/{$this->id}' class='text-primary font-bold'>$this->name</a>";
     }
 
     return $this->name;
