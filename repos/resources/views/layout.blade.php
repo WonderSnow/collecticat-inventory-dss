@@ -98,5 +98,34 @@
     <script>
         Nova.liftOff()
     </script>
+
+    <!-- ✅ Precise Script: Changes ONLY the action play button to "Proceed", leaving the filter icon alone -->
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const observer = new MutationObserver(() => {
+            const selects = document.querySelectorAll('select');
+            selects.forEach(select => {
+                // Target strictly the "Select Action" dropdown
+                if (select.options.length > 0 && select.options[0].text.includes('Select Action')) {
+                    const wrapper = select.parentElement;
+                    if (wrapper) {
+                        const runBtn = wrapper.querySelector('button');
+                        if (runBtn && !runBtn.hasAttribute('data-proceed-replaced')) {
+                            runBtn.setAttribute('data-proceed-replaced', 'true');
+                            
+                            // Replace only the play button with "Proceed"
+                            runBtn.innerHTML = '<span class="px-3 font-semibold text-white">Proceed</span>';
+                            runBtn.style.width = 'auto';
+                            runBtn.style.paddingLeft = '12px';
+                            runBtn.style.paddingRight = '12px';
+                        }
+                    }
+                }
+            });
+        });
+
+        observer.observe(document.body, { childList: true, subtree: true });
+    });
+    </script>
 </body>
 </html>

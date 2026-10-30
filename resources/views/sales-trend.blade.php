@@ -50,7 +50,7 @@ html[data-theme="light"] .chart-toggle-btn {
     font-size: 14px;
 }
 
-/* ✅ ADDED: Stockout Theme Support */
+/* ✅ Stockout Theme Support */
 .stockout-box {
     margin-top: 15px;
     padding: 12px;
@@ -76,24 +76,24 @@ html[data-theme="light"] .stockout-box {
         {{ $product->name }} Demand Frequency
     </h1>
 
-    
-
     <div class="chart-box">
         <div class="mb-4 flex gap-2">
-        <select id="trendType" class="form-control form-select">
-            <option value="day">Daily</option>
-            <option value="week">Weekly</option>
-            <option value="month">Monthly</option>
-            <option value="year">Yearly</option>
-        </select>
-    </div>
+            <select id="trendType" class="form-control form-select">
+                <option value="day">Daily</option>
+                <option value="week">Weekly</option>
+                <option value="month">Monthly</option>
+                <option value="year">Yearly</option>
+            </select>
+        </div>
     
         <div class="stockout-box">
-    <h2 class="text-lg font-bold mb-2">Product Summary</h2>
-    <p id="totalSales"></p>
-    <p id="totalStocks"></p> <!-- ✅ ADD THIS -->
-    <p id="salesRate"></p>
-</div>
+            <h2 class="text-lg font-bold mb-2">Product Summary</h2>
+            <p id="totalSales"></p>
+            <p id="totalRevenue" class="font-semibold text-green-400"></p>
+            <p id="totalStocks"></p> 
+            <p id="salesRate"></p>
+        </div>
+
         <!-- Month selector ABOVE chart -->
         <select id="monthSelector" class="form-control form-select" style="display:none;"></select>
 
@@ -102,19 +102,6 @@ html[data-theme="light"] .stockout-box {
         <button id="toggleChart" class="chart-toggle-btn">
             Switch to Bar Graph
         </button>
-
-        <!-- ✅ ADDED: STOCKOUT REPORT -->
-        <div id="stockoutSection" class="stockout-box">
-            <h2 class="text-lg font-bold mb-2">"No Current Stock" Days</h2>
-            <p id="stockoutCount"></p>
-            <ul id="stockoutList" style="margin-left:20px;"></ul>
-        </div>
-
-        <div id="stockoutSection" class="stockout-box">
-            <h2 class="text-lg font-bold mb-2">Note: </h2>
-            <p>If date isn't included in graph and list above when the product has been bought before, no one bought the product whilst stock is available.</p>
-            <ul id="stockoutList" style="margin-left:20px;"></ul>
-        </div>
     </div>
 
 </div>
@@ -136,40 +123,8 @@ function getTheme() {
         : { text:"#111827", grid:"#e5e7eb" };
 }
 
-/* ✅ ADDED: STOCKOUT FUNCTION */
-/* ✅ UPDATED: STOCKOUT FUNCTION (Zero Stock AND Zero Orders) */
-function calculateStockouts(labels, stocks, sales) {
-    let stockoutDays = [];
-
-    labels.forEach((label, index) => {
-        const stockValue = stocks[index];
-        const orderValue = sales[index];
-
-        // Skip if data is missing
-        if (stockValue === null || orderValue === null) return;
-
-        const currentStock = Number(stockValue);
-        const currentOrders = Number(orderValue);
-
-        // ✅ Logic: Stock is empty AND orders are zero
-        if (currentStock === 0 && currentOrders === 0) {
-            const d = new Date(label);
-            if (!isNaN(d)) {
-                const formatted =
-                    `${String(d.getMonth()+1).padStart(2,'0')}/` +
-                    `${String(d.getDate()).padStart(2,'0')}/` +
-                    `${d.getFullYear()}`;
-                stockoutDays.push(formatted);
-            }
-        }
-    });
-
-    return stockoutDays;
-}
-
 /* ===== PROCESSING FUNCTIONS ===== */
-function processDailyData(labels, sales) {
-    // ✅ Find where the graph actually starts
+function processDailyData(labels, sales, revenue = []) {
     let startIndex = 0;
     for (let i = 0; i < sales.length; i++) {
         if (Number(sales[i]) > 0) {
@@ -178,11 +133,10 @@ function processDailyData(labels, sales) {
         }
     }
 
-    // Trim arrays
     let trimmedLabels = labels.slice(startIndex);
     let trimmedSales = sales.slice(startIndex);
+    let trimmedRevenue = revenue.length ? revenue.slice(startIndex) : [];
 
-    // Convert labels to day numbers for the X-axis
     let newLabels = trimmedLabels.map(l => new Date(l).getDate());
 
     const latestDate = new Date(Math.max(...trimmedLabels.map(d => new Date(d))));
@@ -191,13 +145,16 @@ function processDailyData(labels, sales) {
     return { 
         labels: newLabels, 
         sales: trimmedSales, 
+        revenue: trimmedRevenue,
         monthYear, 
-        startIndex // We return this to trim stocks later
+        startIndex 
     };
 }
-function processWeeklyData(labels, sales) {
+
+function processWeeklyData(labels, sales, revenue = []) {
     let newLabels = [];
     let newSales = [];
+    let newRevenue = [];
     let seen = new Set();
     labels.forEach((label, index) => {
         let finalDate = label.includes(' - ') ? label.split(' - ')[1] : label;
@@ -205,9 +162,10 @@ function processWeeklyData(labels, sales) {
             seen.add(finalDate);
             newLabels.push(finalDate);
             newSales.push(sales[index]);
+            if(revenue.length) newRevenue.push(revenue[index]);
         }
     });
-    return { labels: newLabels, sales: newSales };
+    return { labels: newLabels, sales: newSales, revenue: newRevenue };
 }
 
 /* ===== MONTH SELECTOR ===== */
@@ -234,38 +192,34 @@ function populateMonthSelector(labels, mode = 'month') {
         return;
     }
 
-    // MONTH MODE
     const months = new Set();
     labels.forEach(label => {
-    let d;
+        let d;
 
-    // ✅ ADD THIS
-    if (label.includes(' - ')) {
-    const [startStr, endStr] = label.split(' - ');
-    const start = new Date(startStr);
-    const end = new Date(endStr);
+        if (label.includes(' - ')) {
+            const [startStr, endStr] = label.split(' - ');
+            const start = new Date(startStr);
+            const end = new Date(endStr);
 
-    if (!isNaN(start) && !isNaN(end)) {
-        // ✅ Always include start month
-        months.add(`${start.getFullYear()}-${start.getMonth() + 1}`);
+            if (!isNaN(start) && !isNaN(end)) {
+                months.add(`${start.getFullYear()}-${start.getMonth() + 1}`);
 
-        // ✅ ONLY include end month if different
-        if (
-            start.getMonth() !== end.getMonth() ||
-            start.getFullYear() !== end.getFullYear()
-        ) {
-            months.add(`${end.getFullYear()}-${end.getMonth() + 1}`);
+                if (
+                    start.getMonth() !== end.getMonth() ||
+                    start.getFullYear() !== end.getFullYear()
+                ) {
+                    months.add(`${end.getFullYear()}-${end.getMonth() + 1}`);
+                }
+            }
+            return;
+        } else {
+            d = new Date(label);
         }
-    }
-    return;
-} else {
-        d = new Date(label);
-    }
 
-    if (!isNaN(d)) {
-        months.add(`${d.getFullYear()}-${d.getMonth() + 1}`);
-    }
-});
+        if (!isNaN(d)) {
+            months.add(`${d.getFullYear()}-${d.getMonth() + 1}`);
+        }
+    });
 
     const sorted = Array.from(months).sort((a, b) => {
         const [yA, mA] = a.split('-').map(Number);
@@ -312,60 +266,43 @@ function getAvailableYears(labels) {
     return Array.from(years).sort((a, b) => b - a);
 }
 
-/* ✅ UPDATED: CALCULATE TOTAL SALES + SALES RATE */
-function calculateTotals(sales) {
-    let totalSales = 0;
-
-    sales.forEach(qty => {
-        totalSales += qty;
-    });
-
-    const daysCount = sales.length > 0 ? sales.length : 1;
-    const salesRate = totalSales / daysCount;
-
-    return { totalSales, salesRate };
-}
-
-function filterByMonth(labels, sales, stocks, monthValue) {
-    if (!monthValue) return { labels, sales, stocks };
+function filterByMonth(labels, sales, stocks, revenue, monthValue) {
+    if (!monthValue) return { labels, sales, stocks, revenue };
 
     const [year, month] = monthValue.split('-').map(Number);
 
     let filteredLabels = [];
     let filteredSales = [];
     let filteredStocks = [];
+    let filteredRevenue = [];
 
     labels.forEach((label, index) => {
         let d;
 
-        // ✅ FIX: HANDLE WEEK RANGE
         if (label.includes(' - ')) {
-    const [startStr, endStr] = label.split(' - ');
-    const start = new Date(startStr);
-    const end = new Date(endStr);
+            const [startStr, endStr] = label.split(' - ');
+            const start = new Date(startStr);
+            const end = new Date(endStr);
 
-    if (isNaN(start) || isNaN(end)) return;
+            if (isNaN(start) || isNaN(end)) return;
 
-    const startMonthMatch =
-        start.getFullYear() === year &&
-        (start.getMonth() + 1) === month;
+            const startMonthMatch =
+                start.getFullYear() === year &&
+                (start.getMonth() + 1) === month;
 
-    const endMonthMatch =
-        end.getFullYear() === year &&
-        (end.getMonth() + 1) === month;
+            const endMonthMatch =
+                end.getFullYear() === year &&
+                (end.getMonth() + 1) === month;
 
-    // ✅ INCLUDE if:
-    // 1. Week starts in this month
-    // OR
-    // 2. Week ends in this month (carry-over case)
-    if (startMonthMatch || endMonthMatch) {
-        filteredLabels.push(label);
-        filteredSales.push(sales[index]);
-        filteredStocks.push(stocks[index] ?? null);
-    }
+            if (startMonthMatch || endMonthMatch) {
+                filteredLabels.push(label);
+                filteredSales.push(sales[index]);
+                filteredStocks.push(stocks[index] ?? null);
+                if(revenue.length) filteredRevenue.push(revenue[index] ?? 0);
+            }
 
-    return;
-} else {
+            return;
+        } else {
             d = new Date(label);
         }
 
@@ -376,21 +313,23 @@ function filterByMonth(labels, sales, stocks, monthValue) {
             filteredLabels.push(label);
             filteredSales.push(sales[index]);
             filteredStocks.push(stocks[index] ?? null);
+            if(revenue.length) filteredRevenue.push(revenue[index] ?? 0);
         }
     });
 
     return {
         labels: filteredLabels,
         sales: filteredSales,
-        stocks: filteredStocks
+        stocks: filteredStocks,
+        revenue: filteredRevenue
     };
 }
 
 /* ===== LOAD TREND ===== */
 function loadTrend(type, monthValue = null) {
     if (monthValue !== null && type === 'day') {
-    selectedMonth = monthValue;
-}
+        selectedMonth = monthValue;
+    }
     let url = `/api/product-trend/{{ $product->id }}/${type}`;
     if(monthValue) url += `?month=${monthValue}`;
 
@@ -401,162 +340,144 @@ function loadTrend(type, monthValue = null) {
             const theme = getTheme();
             const ctx = document.getElementById('chart');
             const container = ctx.parentElement;
-const selector = document.getElementById('monthSelector');
-const stockoutSection = document.getElementById('stockoutSection');
+            const selector = document.getElementById('monthSelector');
 
-// ✅ Show ONLY for daily
-if (type === 'day') {
-    stockoutSection.style.display = 'block';
-} else {
-    stockoutSection.style.display = 'none';
-}
+            if (type === 'year') {
+                selectedMonth = null;
+                selector.style.display = 'none';
+                selector.innerHTML = '';
+            }
 
-// ✅ YEARLY MODE: REMOVE FROM LAYOUT COMPLETELY
-if (type === 'year') {
-    selectedMonth = null;
-    selector.style.display = 'none';
-    selector.innerHTML = '';
-}
             let labels = data.labels;
-let sales = data.sales;
-let stocks = data.stocks || [];
-            let xAxisTitle = 'Time';
-
-            let originalLabels = [...labels];
-            let originalSales = [...sales];
-            let tooltipLabels = [...labels]; // ✅ will always match chart
-            let filteredOriginalLabels = [...labels]; 
+            let sales = data.sales;
+            let stocks = data.stocks || [];
+            let revenue = data.revenue || [];
+            let xAxisTitle = 'Date'; // Changed from 'Time' to 'Date'
 
             if (type === 'day') {
-    if (!selectedMonth) {
-        selectedMonth = getLatestMonth(data.labels);
-    }
+                if (!selectedMonth) {
+                    selectedMonth = getLatestMonth(data.labels);
+                }
 
-    populateMonthSelector(data.labels, 'month');
+                populateMonthSelector(data.labels, 'month');
 
-    const filtered = filterByMonth(labels, sales, stocks, selectedMonth);
+                const filtered = filterByMonth(labels, sales, stocks, revenue, selectedMonth);
 
-    // Apply filtering
-    labels = filtered.labels;
-    sales = filtered.sales;
-    stocks = filtered.stocks;
+                labels = filtered.labels;
+                sales = filtered.sales;
+                stocks = filtered.stocks;
+                revenue = filtered.revenue;
 
-    // ✅ NEW: Trim the data to match the graph's starting point
-    const processed = processDailyData(labels, sales);
-    
-    // Synchronize everything to the processed start index
-    labels = processed.labels; // Day numbers (1, 2, 3...)
-    sales = processed.sales;   
-    stocks = stocks.slice(processed.startIndex); // Trim stocks to match
-    filteredOriginalLabels = filtered.labels.slice(processed.startIndex); // Trim full dates to match
+                const processed = processDailyData(labels, sales, revenue);
+                
+                labels = processed.labels;
+                sales = processed.sales;   
+                revenue = processed.revenue;
+                stocks = stocks.slice(processed.startIndex);
 
-    xAxisTitle = `Time (${processed.monthYear})`;
-}
+                xAxisTitle = `Date (${processed.monthYear})`; // Changed from 'Time' to 'Date'
+            }
 
+            if (type === 'month' && type !== 'year') {
+                populateMonthSelector(data.labels, 'year');
 
-// ✅ MONTHLY: filter by year
-if (type === 'month' && type !== 'year') {
+                const years = getAvailableYears(data.labels);
+                if (!years.length) return;
 
-    populateMonthSelector(data.labels, 'year');
+                selectedMonth = years.includes(Number(selectedMonth))
+                    ? selectedMonth
+                    : String(years[0]);
 
-    const years = getAvailableYears(data.labels);
-    if (!years.length) return;
+                const year = Number(selectedMonth);
 
-    selectedMonth = years.includes(Number(selectedMonth))
-        ? selectedMonth
-        : String(years[0]);
+                let filteredLabels = [];
+                let filteredSales = [];
+                let filteredRevenue = [];
 
-    const year = Number(selectedMonth);
+                labels.forEach((label, index) => {
+                    const d = new Date(label);
+                    if (!isNaN(d) && d.getFullYear() === year) {
+                        filteredLabels.push(label);
+                        filteredSales.push(sales[index]);
+                        if(revenue.length) filteredRevenue.push(revenue[index]);
+                    }
+                });
 
-    labels = labels.filter(l => {
-        const d = new Date(l);
-        return !isNaN(d) && d.getFullYear() === year;
-    });
+                labels = filteredLabels;
+                sales = filteredSales;
+                revenue = filteredRevenue;
 
-    let filteredSales = [];
+                xAxisTitle = `Date (${year})`; // Changed from 'Time' to 'Date'
+            }
 
-labels.forEach((label, index) => {
-    const d = new Date(label);
-    if (!isNaN(d) && d.getFullYear() === year) {
-        filteredSales.push(sales[index]);
-    }
-});
+            if (type === 'week') {
+                populateMonthSelector(data.labels, 'month');
+                selector.style.display = 'block';
 
-sales = filteredSales;
+                if (!selectedMonth) {
+                    selectedMonth = getLatestMonth(data.labels);
+                }
 
-    xAxisTitle = `Time (${year})`;
-}
+                const filtered = filterByMonth(data.labels, data.sales, data.stocks || [], data.revenue || [], selectedMonth);
 
-if (type === 'week') {
+                labels = filtered.labels;
+                sales = filtered.sales;
+                stocks = filtered.stocks;
+                revenue = filtered.revenue;
 
-    // ✅ Always populate dropdown FIRST
-    populateMonthSelector(data.labels, 'month');
-    selector.style.display = 'block';
+                const previousWeek = data.labels.find(label => {
+                    if (!label.includes(' - ')) return false;
 
-    // ✅ Ensure we have a selected month
-    if (!selectedMonth) {
-        selectedMonth = getLatestMonth(data.labels);
-    }
+                    const [startStr, endStr] = label.split(' - ');
+                    const start = new Date(startStr);
+                    const end = new Date(endStr);
 
-    // ✅ Apply filter AFTER selection
-    const filtered = filterByMonth(data.labels, data.sales, data.stocks || [], selectedMonth);
+                    const [year, month] = selectedMonth.split('-').map(Number);
 
-    labels = filtered.labels;
-    sales = filtered.sales;
-    stocks = filtered.stocks;
+                    return (
+                        !isNaN(start) &&
+                        !isNaN(end) &&
+                        end.getFullYear() === year &&
+                        (end.getMonth() + 1) === month &&
+                        (start.getMonth() + 1) !== month
+                    );
+                });
 
-    // ✅ Add carry-over ONLY for display (not as real week)
-const previousWeek = data.labels.find(label => {
-    if (!label.includes(' - ')) return false;
+                if (previousWeek) {
+                    const index = data.labels.indexOf(previousWeek);
+                    const [, endStr] = previousWeek.split(' - ');
 
-    const [startStr, endStr] = label.split(' - ');
-    const start = new Date(startStr);
-    const end = new Date(endStr);
+                    labels.unshift(endStr);          
+                    sales.unshift(data.sales[index]); 
+                    if(data.revenue && data.revenue[index] !== undefined) {
+                        revenue.unshift(data.revenue[index]);
+                    }
+                }
 
-    const [year, month] = selectedMonth.split('-').map(Number);
+                if (labels.length === 0) {
+                    selectedMonth = getLatestMonth(data.labels);
 
-    return (
-        !isNaN(start) &&
-        !isNaN(end) &&
-        end.getFullYear() === year &&
-        (end.getMonth() + 1) === month &&
-        (start.getMonth() + 1) !== month
-    );
-});
+                    const retry = filterByMonth(data.labels, data.sales, data.stocks || [], data.revenue || [], selectedMonth);
+                    labels = retry.labels;
+                    sales = retry.sales;
+                    stocks = retry.stocks;
+                    revenue = retry.revenue;
+                }
 
-if (previousWeek) {
-    const index = data.labels.indexOf(previousWeek);
-    const [, endStr] = previousWeek.split(' - ');
+                const processed = processWeeklyData(labels, sales, revenue);
+                labels = processed.labels;
+                sales = processed.sales;
+                revenue = processed.revenue;
 
-    labels.unshift(endStr);          // show only end date
-    sales.unshift(data.sales[index]); // same value
-}
+                const [y, m] = selectedMonth.split('-');
+                const formattedMonth = new Date(y, m - 1).toLocaleString('default', {
+                    month: 'long',
+                    year: 'numeric'
+                });
 
-    // ❗ If still empty → fallback (prevents blank chart)
-    if (labels.length === 0) {
-        selectedMonth = getLatestMonth(data.labels);
+                xAxisTitle = `Date (${formattedMonth})`; // Changed from 'Time' to 'Date'
+            }
 
-        const retry = filterByMonth(data.labels, data.sales, data.stocks || [], selectedMonth);
-        labels = retry.labels;
-        sales = retry.sales;
-        stocks = retry.stocks;
-    }
-
-    // ✅ Process weekly AFTER filtering
-    const processed = processWeeklyData(labels, sales);
-    labels = processed.labels;
-    sales = processed.sales;
-
-    tooltipLabels = [...labels];
-
-    const [y, m] = selectedMonth.split('-');
-    const formattedMonth = new Date(y, m - 1).toLocaleString('default', {
-        month: 'long',
-        year: 'numeric'
-    });
-
-    xAxisTitle = `Time (${formattedMonth})`;
-}
             container.style.minWidth = (labels.length * 60) + 'px';
 
             Chart.defaults.font.family = 'Nunito';
@@ -568,63 +489,51 @@ if (previousWeek) {
                 data: {
                     labels: labels,
                     datasets: [{
-    label: 'Transaction Volume',
-    data: sales,
-    borderColor: '#60a5fa',
-    backgroundColor: chartType==='bar' ? '#60a5fa':'rgba(96,165,250,0.15)',
-    fill: chartType==='line',
-
-    pointRadius: chartType==='line'?5:0,
-    pointHoverRadius: chartType==='line'?7:0,
-
-    pointBackgroundColor: '#60a5fa', // optional but cleaner
-    pointBorderColor: '#60a5fa',
-    pointBorderWidth: 2,
-
-    clip: false, // ✅ THIS FIXES THE CUTTING WITHOUT MOVING GRAPH
-
-    borderWidth: 3,
-    tension: chartType==='line'?0.4:0
-}]
+                        label: 'Transaction Volume',
+                        data: sales,
+                        borderColor: '#60a5fa',
+                        backgroundColor: chartType==='bar' ? '#60a5fa':'rgba(96,165,250,0.15)',
+                        fill: chartType==='line',
+                        pointRadius: chartType==='line'?5:0,
+                        pointHoverRadius: chartType==='line'?7:0,
+                        pointBackgroundColor: '#60a5fa',
+                        pointBorderColor: '#60a5fa',
+                        pointBorderWidth: 2,
+                        clip: false,
+                        borderWidth: 3,
+                        tension: chartType==='line'?0.4:0
+                    }]
                 },
                 options: {
                     layout: {
-    padding: {
-        bottom: 10
-    }
-},
+                        padding: { bottom: 10 }
+                    },
                     responsive: true,
                     plugins: {
                         tooltip: {
                             callbacks: {
-                                // Inside your chart options -> plugins -> tooltip -> callbacks
-title: function(context) {
-    const index = context[0].dataIndex;
-    // Get the label actually being displayed on the X-axis (e.g., "3")
-    let displayLabel = context[0].chart.data.labels[index];
-    
-    // Get the current selected month/year from your dropdown
-    const selector = document.getElementById('monthSelector');
-    const selectedValue = selector.value; // Format: "YYYY-M" or "YYYY"
+                                title: function(context) {
+                                    const index = context[0].dataIndex;
+                                    let displayLabel = context[0].chart.data.labels[index];
+                                    
+                                    const selector = document.getElementById('monthSelector');
+                                    const selectedValue = selector.value;
 
-    if (document.getElementById('trendType').value === 'day' && selectedValue) {
-        const [year, month] = selectedValue.split('-').map(Number);
-        
-        // Construct a full date object using the day number from the graph
-        const d = new Date(year, month - 1, displayLabel);
-        
-        if (!isNaN(d)) {
-            return `Date: ${
-                String(d.getMonth() + 1).padStart(2, '0')}/${
-                String(d.getDate()).padStart(2, '0')}/${
-                d.getFullYear()
-            }`;
-        }
-    }
+                                    if (document.getElementById('trendType').value === 'day' && selectedValue) {
+                                        const [year, month] = selectedValue.split('-').map(Number);
+                                        const d = new Date(year, month - 1, displayLabel);
+                                        
+                                        if (!isNaN(d)) {
+                                            return `Date: ${
+                                                String(d.getMonth() + 1).padStart(2, '0')}/${
+                                                String(d.getDate()).padStart(2, '0')}/${
+                                                d.getFullYear()
+                                            }`;
+                                        }
+                                    }
 
-    // Fallback for weekly/monthly/yearly views
-    return `Period: ${displayLabel}`;
-},
+                                    return `Period: ${displayLabel}`;
+                                },
                                 label: function(context) {
                                     return `Orders Confirmed: ${context.raw}`;
                                 }
@@ -642,64 +551,36 @@ title: function(context) {
                             min: -0.5
                         },
                         y: {
-    beginAtZero: true,   // ✅ FORCE START AT 0
-    min: 0,              // ✅ HARD FLOOR
-    title: {
-        display: true,
-        text: 'Orders',
-        color: "#ffffff",
-        font: { size: 20, weight: 'bold' }
-    },
-    ticks: {
-        color: "#ffffff",
-        font: { size: 14 }
-    },
-    grid: { color: theme.grid }
-}
+                            beginAtZero: true,   
+                            min: 0,              
+                            title: {
+                                display: true,
+                                text: 'Orders',
+                                color: "#ffffff",
+                                font: { size: 20, weight: 'bold' }
+                            },
+                            ticks: {
+                                color: "#ffffff",
+                                font: { size: 14 }
+                            },
+                            grid: { color: theme.grid }
+                        }
                     }
                 }
             });
 
-const initialStock = {{ $product->default_stock ?? 100 }};
-// ... (keep the chart = new Chart(...) code above)
+            let displayedTotalOrders = Number(sales.reduce((a, b) => a + Number(b), 0));
+            let displayedTotalStocks = Number(stocks.reduce((a, b) => a + Number(b), 0));
+            let totalRevenueAmount = Number(revenue.reduce((a, b) => a + Number(b), 0));
 
-            /* ✅ FIXED: SCOPE AND DATA ALIGNMENT */
-            let stockoutDays = [];
-            let displayedTotalOrders = 0;
-            let displayedTotalStocks = 0;
             let countOfDays = sales.length > 0 ? sales.length : 1;
-
-            if (type === 'day') {
-                // We use the filtered labels and stocks directly
-                stockoutDays = calculateStockouts(filteredOriginalLabels, stocks, sales);
-                stockoutSection.style.display = 'block';
-            } else {
-                stockoutSection.style.display = 'none';
-            }
-
-            // Update Summary Text
-            displayedTotalOrders = Number(sales.reduce((a, b) => a + Number(b), 0));
-            displayedTotalStocks = Number(stocks.reduce((a, b) => a + Number(b), 0));
-            
             const fixedRate = Math.round(displayedTotalStocks / countOfDays);
-
-            // Update UI Elements
-            document.getElementById('stockoutCount').innerText = `Total Days: ${stockoutDays.length}`;
-            const list = document.getElementById('stockoutList');
-            list.innerHTML = '';
-
-            if (stockoutDays.length === 0) {
-                list.innerHTML = '<li>All recent days have stocks</li>';
-            } else {
-                stockoutDays.forEach(date => {
-                    const li = document.createElement('li');
-                    li.innerText = date;
-                    list.appendChild(li);
-                });
-            }
 
             document.getElementById('totalSales').innerText =
                 `Total Orders Completed: ${displayedTotalOrders.toLocaleString()}`;
+
+            document.getElementById('totalRevenue').innerText =
+                `Total Sales: ₱${totalRevenueAmount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
 
             document.getElementById('totalStocks').innerText =
                 `Total Stocks Sold: ${displayedTotalStocks.toLocaleString()}`;
@@ -712,7 +593,7 @@ const initialStock = {{ $product->default_stock ?? 100 }};
 
 /* ===== EVENT LISTENERS ===== */
 document.getElementById('trendType').addEventListener('change', function () {
-    selectedMonth = null; // ✅ reset stale month/year
+    selectedMonth = null; 
     loadTrend(this.value);
 });
 
@@ -731,7 +612,6 @@ loadTrend('day');
 
 new MutationObserver(() => loadTrend(document.getElementById('trendType').value, document.getElementById('monthSelector').value))
     .observe(document.documentElement, { attributes:true, attributeFilter:['data-theme'] });
-
 </script>
 
 @endsection
