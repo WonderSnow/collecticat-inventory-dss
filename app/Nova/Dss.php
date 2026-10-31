@@ -88,9 +88,9 @@ class Dss extends Resource
      */
     public static function indexQuery(NovaRequest $request, $query)
     {
-        // Sort products that have at least one valid prediction to the top
+        // Clear existing default orders and sort products with valid predictions to the top
         if (empty($request->get('orderBy'))) {
-            $query->orderByRaw("(SELECT COUNT(*) FROM predictions WHERE predictions.product_id = products.id AND sales_quantity IS NOT NULL) DESC");
+            $query->reorder()->orderByRaw("(SELECT COUNT(*) FROM predictions WHERE predictions.product_id = products.id AND sales_quantity IS NOT NULL) DESC");
         }
 
         return $query;
