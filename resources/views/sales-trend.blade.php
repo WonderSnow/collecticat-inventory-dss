@@ -25,26 +25,14 @@ html[data-theme="light"] .chart-toggle-btn {
 }
 
 .chart-box {
-    overflow-x: auto;
     padding: 16px;
     border-radius: 12px;
-    
     display: flex;
     flex-direction: column;
     gap: 16px;
-
-    /* ✅ smooth scrolling feel */
-    scroll-behavior: smooth;
+    width: 100%;
 }
 
-/* scrollbar styling */
-.chart-box::-webkit-scrollbar {
-    height: 8px;
-}
-.chart-box::-webkit-scrollbar-thumb {
-    background: #475569;
-    border-radius: 10px;
-}
 .form-control.form-select {
     height: 38px;
     font-size: 14px;
@@ -87,7 +75,8 @@ html[data-theme="light"] .stockout-box {
         </div>
     
         <div class="stockout-box">
-            <h2 class="text-lg font-bold mb-2">Product Summary</h2>
+            <h2 class="text-lg font-bold mb-2">Product's Sale Summary</h2>
+            <p id="productPrice" class="font-semibold"></p>
             <p id="totalSales"></p>
             <p id="totalRevenue" class="font-semibold text-green-400"></p>
             <p id="totalStocks"></p> 
@@ -97,9 +86,12 @@ html[data-theme="light"] .stockout-box {
         <!-- Month selector ABOVE chart -->
         <select id="monthSelector" class="form-control form-select" style="display:none;"></select>
 
-        <canvas id="chart" height="120"></canvas>
+        <!-- ✅ Fixed responsive wrapper container for the chart -->
+        <div style="position: relative; width: 100%; height: 380px;">
+            <canvas id="chart"></canvas>
+        </div>
 
-        <button id="toggleChart" class="chart-toggle-btn">
+        <button id="toggleChart" class="chart-toggle-btn" style="width: fit-content;">
             Switch to Bar Graph
         </button>
     </div>
@@ -338,8 +330,7 @@ function loadTrend(type, monthValue = null) {
         .then(data => {
             if(chart) chart.destroy();
             const theme = getTheme();
-            const ctx = document.getElementById('chart');
-            const container = ctx.parentElement;
+            const ctx = document.getElementById('chart').getContext('2d');
             const selector = document.getElementById('monthSelector');
 
             if (type === 'year') {
@@ -352,7 +343,7 @@ function loadTrend(type, monthValue = null) {
             let sales = data.sales;
             let stocks = data.stocks || [];
             let revenue = data.revenue || [];
-            let xAxisTitle = 'Date'; // Changed from 'Time' to 'Date'
+            let xAxisTitle = 'Date';
 
             if (type === 'day') {
                 if (!selectedMonth) {
@@ -375,7 +366,7 @@ function loadTrend(type, monthValue = null) {
                 revenue = processed.revenue;
                 stocks = stocks.slice(processed.startIndex);
 
-                xAxisTitle = `Date (${processed.monthYear})`; // Changed from 'Time' to 'Date'
+                xAxisTitle = `Date (${processed.monthYear})`;
             }
 
             if (type === 'month' && type !== 'year') {
@@ -407,7 +398,7 @@ function loadTrend(type, monthValue = null) {
                 sales = filteredSales;
                 revenue = filteredRevenue;
 
-                xAxisTitle = `Date (${year})`; // Changed from 'Time' to 'Date'
+                xAxisTitle = `Date (${year})`;
             }
 
             if (type === 'week') {
@@ -475,10 +466,8 @@ function loadTrend(type, monthValue = null) {
                     year: 'numeric'
                 });
 
-                xAxisTitle = `Date (${formattedMonth})`; // Changed from 'Time' to 'Date'
+                xAxisTitle = `Date (${formattedMonth})`;
             }
-
-            container.style.minWidth = (labels.length * 60) + 'px';
 
             Chart.defaults.font.family = 'Nunito';
             Chart.defaults.color = '#ffffff';
@@ -505,10 +494,11 @@ function loadTrend(type, monthValue = null) {
                     }]
                 },
                 options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
                     layout: {
                         padding: { bottom: 10 }
                     },
-                    responsive: true,
                     plugins: {
                         tooltip: {
                             callbacks: {
@@ -574,7 +564,14 @@ function loadTrend(type, monthValue = null) {
             let totalRevenueAmount = Number(revenue.reduce((a, b) => a + Number(b), 0));
 
             let countOfDays = sales.length > 0 ? sales.length : 1;
-            const fixedRate = Math.round(displayedTotalStocks / countOfDays);
+            
+            // ✅ Format sales rate with up to 2 decimal places if it contains decimals (e.g., 0.17)
+            let rawRate = displayedTotalStocks / countOfDays;
+            let formattedRate = Number.isInteger(rawRate) ? rawRate.toLocaleString() : rawRate.toFixed(2);
+
+            let productPrice = Number({{ $product->price ?? 0 }});
+            document.getElementById('productPrice').innerText =
+                `Product Price: ₱${productPrice.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
 
             document.getElementById('totalSales').innerText =
                 `Total Orders Completed: ${displayedTotalOrders.toLocaleString()}`;
@@ -587,7 +584,7 @@ function loadTrend(type, monthValue = null) {
 
             const trendTypeDisplay = document.getElementById('trendType').value;
             document.getElementById('salesRate').innerText =
-                `Stocks Sold: ${fixedRate.toLocaleString()}/${trendTypeDisplay}`;
+                `Stocks Sold: ${formattedRate}/${trendTypeDisplay}`;
         });
 }
 

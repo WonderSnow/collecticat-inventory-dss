@@ -49,3 +49,25 @@ input[type="checkbox"][aria-label="Select All"] {
 .dark .dss-prediction-text {
     color: #ffffff !important; /* White text for dark mode */
 }
+
+/* --- Force the Orders Trend card to the absolute top of the dashboard --- */
+div[data-testid="nova-base"] .flex.flex-wrap,
+div[data-dashboard] {
+    display: flex !important;
+    flex-direction: column !important;
+}
+
+/* Target the Orders Trend card container specifically and pin it to the top */
+div.card:has([data-testid="orders-trend"]),
+div[data-metric-url*="orders-trend"] {
+    order: -999 !important;
+    width: 100% !important;
+    flex-basis: 100% !important;
+    min-height: 380px !important;
+}
+
+/* Expand the inner chart canvas area to look prominent */
+div[data-testid="orders-trend"] .h-24,
+div[data-metric-url*="orders-trend"] .h-24 {
+    height: 280px !important;
+}

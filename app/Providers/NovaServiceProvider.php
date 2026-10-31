@@ -41,7 +41,6 @@ class NovaServiceProvider extends NovaApplicationServiceProvider
         
         parent::boot();
 
-        // 🌟 Add this line to change the Nova navigation bar and title name
         Nova::name('Collecticat');
 
         Nova::style('custom-nova-style', asset('css/nova-custom.css'));
@@ -74,7 +73,6 @@ class NovaServiceProvider extends NovaApplicationServiceProvider
     protected function gate()
     {
         Gate::define('viewNova', function ($user) {
-            // Block archived users entirely from accessing the Nova admin panel
             if ($user->status === 'ARCHIVE') {
                 return false;
             }
@@ -89,43 +87,42 @@ class NovaServiceProvider extends NovaApplicationServiceProvider
      * @return array
      */
     protected function cards()
-{
-    $orderToday = \App\Models\Order::whereStatus(\App\Models\Order::STATUS_CONFIRMED)
-        ->whereEmployeeId(auth()->user()->id)
-        ->whereDate('created_at', now())
-        ->count();
+    {
+        $orderToday = \App\Models\Order::whereStatus(\App\Models\Order::STATUS_CONFIRMED)
+            ->whereEmployeeId(auth()->user()->id)
+            ->whereDate('created_at', now())
+            ->count();
 
-    $quota = auth()->user()->quota ?? 0;
+        $quota = auth()->user()->quota ?? 0;
 
-    $quota_percentage = 0;
-    if ($quota > 0) {
-        $quota_percentage = $orderToday / $quota;
+        $quota_percentage = 0;
+        if ($quota > 0) {
+            $quota_percentage = $orderToday / $quota;
+        }
+
+        return [
+            // Your existing timezones & metrics below (anonymous card removed)
+            (new \Richardkeep\NovaTimenow\NovaTimenow)->timezones([
+                'Africa/Nairobi',
+                'America/Mexico_City',
+                'Australia/Sydney',
+                'Europe/Paris',
+                'Asia/Manila',
+                'Asia/Tokyo',
+            ])->defaultTimezone('Asia/Manila')
+            ->canSee(function () {
+                return config('novax.time_enabled');
+            })->width('1/3'),
+
+            Products::make()->withMeta(['name' => 'Products Transferred into the System'])->width('1/3'),
+            ConfirmedOrders::make()->width('1/3'),
+
+            (new ProgressBar)->options([
+                'title' => "Daily Quota: {$quota} | Sold: {$orderToday}",
+                'percentage' => $quota_percentage,
+            ])->width('1/3'),
+        ];
     }
-
-    return [
-        (new \Richardkeep\NovaTimenow\NovaTimenow)->timezones([
-            'Africa/Nairobi',
-            'America/Mexico_City',
-            'Australia/Sydney',
-            'Europe/Paris',
-            'Asia/Manila',
-            'Asia/Tokyo',
-        ])->defaultTimezone('Asia/Manila')
-        ->canSee(function () {
-            return config('novax.time_enabled');
-        })->width('1/3'),
-
-        Products::make()->withMeta(['name' => 'Products Transferred into the System'])->width('1/3'),
-        //PendingOrders::make()->width('1/3'),
-        ConfirmedOrders::make()->width('1/3'),
-        //ProductCategories::make()->width('1/3'),
-
-        (new ProgressBar)->options([
-    'title' => "Daily Quota: {$quota} | Sold: {$orderToday}",
-    'percentage' => $quota_percentage,
-])->width('1/3')
-    ];
-}
 
     /**
      * Get the extra dashboards that should be displayed on the Nova dashboard.
@@ -148,7 +145,6 @@ class NovaServiceProvider extends NovaApplicationServiceProvider
             (new ProfileTool)->canSee(fn () => config('novax.profile_enabled')),
             (new BackupTool)->canSee(fn () => config('novax.back_up_enabled')),
             (new NovaSettings)->canSee(fn () => config('novax.setting_enabled')),
-            new \NovaxAi\SalesTrend\SalesTrend,
         ];
     }
 
@@ -159,7 +155,6 @@ class NovaServiceProvider extends NovaApplicationServiceProvider
      */
     public function register()
     {
-        // Bind the old vendor path to your custom controller so Laravel resolves it correctly
         $this->app->bind(
             \Laravel\Nova\Http\Controllers\ForgotPasswordController::class, 
             \App\Http\Controllers\ForgotPasswordController::class

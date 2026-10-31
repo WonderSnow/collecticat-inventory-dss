@@ -10,6 +10,7 @@ use Laravel\Nova\Fields\Number;
 use Laravel\Nova\Fields\Select;
 use Laravel\Nova\Fields\HasMany;
 use Laravel\Nova\Fields\Password;
+use Illuminate\Validation\Rule;
 use Laravel\Nova\Http\Requests\NovaRequest;
 
 class User extends Resource
@@ -24,7 +25,7 @@ class User extends Resource
     public static $title = 'name';
 
     public static $search = [
-        'id', 'name', 'email',
+        'name', 'email', 'status', 'role'
     ];
 
     public function authorizedToDelete(Request $request)
@@ -84,39 +85,55 @@ class User extends Resource
                 ->hideWhenUpdating(),
 
             Select::make('Status', 'status')
-    ->options([
-        'ACTIVE' => 'ACTIVE',
-        'DISACTIVATE' => 'DISACTIVATE',
-        'ARCHIVE' => 'ARCHIVE',
-    ])
-    // This controls how it appears on index/detail views ("DISACTIVATED")
-    ->displayUsing(function ($value) {
-        if ($value === 'DISACTIVATE') {
-            return 'DISACTIVATED';
-        }
-        return $value ?? 'ACTIVE';
-    })
-    // This controls how it resolves when loading the form dropdown
-    ->resolveUsing(fn ($value) => $value ?? 'ACTIVE')
-    ->default('ACTIVE')
-    ->hideWhenCreating()
-    ->rules('required', 'in:ACTIVE,DISACTIVATE,ARCHIVE')
-    ->sortable()
-    ->canSee(function ($request) use ($isArchived) {
-        if ($isArchived && $request->route('resourceId')) {
-            return false;
-        }
-        return true;
-    }),
+                ->options([
+                    'ACTIVE' => 'ACTIVE',
+                    'DISACTIVATE' => 'DISACTIVATE',
+                    'ARCHIVE' => 'ARCHIVE',
+                ])
+                // This controls how it appears on index/detail views ("DISACTIVATED")
+                ->displayUsing(function ($value) {
+                    if ($value === 'DISACTIVATE') {
+                        return 'DISACTIVATED';
+                    }
+                    return $value ?? 'ACTIVE';
+                })
+                // This controls how it resolves when loading the form dropdown
+                ->resolveUsing(fn ($value) => $value ?? 'ACTIVE')
+                ->default('ACTIVE')
+                ->hideWhenCreating()
+                ->rules('required', 'in:ACTIVE,DISACTIVATE,ARCHIVE')
+                ->sortable()
+                ->canSee(function ($request) use ($isArchived) {
+                    if ($isArchived && $request->route('resourceId')) {
+                        return false;
+                    }
+                    return true;
+                }),
 
             Number::make('Quota')
-                ->rules('required', 'integer', 'min:0')
+                ->rules([
+                    Rule::requiredIf(fn () => $request->input('role') === \App\Models\User::ROLE_EMPLOYEE),
+                    'nullable',
+                    'integer',
+                    function ($attribute, $value, $fail) use ($request) {
+                        if ($request->input('role') === \App\Models\User::ROLE_EMPLOYEE && (int)$value < 1) {
+                            $fail('The quota must be at least 1 when the role is Employee.');
+                        }
+                    },
+                ])
                 ->sortable()
                 ->canSee(fn () => !$isArchived),
 
             Text::make('Daily Progress', function () {
                 $progress = $this->orders()->whereStatus(\App\Models\Order::STATUS_CONFIRMED)->whereDate('created_at', now())->count();
-                return "<progress value='$progress' max='$this->quota' />";
+                $quota = $this->quota ?? 0;
+                
+                return "
+                    <div style='display: flex; align-items: center; gap: 8px;'>
+                        <progress value='{$progress}' max='{$quota}' style='width: 100px;'></progress>
+                        <span style='font-size: 13px; font-weight: 600;'>{$progress} / {$quota}</span>
+                    </div>
+                ";
             })
             ->asHtml()
             ->canSee(fn () => !$isArchived),

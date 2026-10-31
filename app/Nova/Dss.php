@@ -31,7 +31,7 @@ class Dss extends Resource
         return false;
     }
     public function authorizedToUpdate(Request $request)
-{
+    {
     // Allow Nova actions for all authorized users
     if (auth()->user()->role === \App\Models\User::ROLE_ADMIN) {
         return true;
@@ -78,6 +78,25 @@ class Dss extends Resource
         'search_keyword',
         'card_set_category'
     ];
+
+    /**
+     * Build an "index" query for the resource.
+     *
+     * @param  \Laravel\Nova\Http\Requests\NovaRequest  $request
+     * @param  \Illuminate\Database\Eloquent\Builder  $query
+     * @return \Illuminate\Database\Eloquent\Builder
+     */
+    public static function indexQuery(NovaRequest $request, $query)
+    {
+        // If the user hasn't explicitly sorted by another column, sort by valid predictions count descending
+        if (empty($request->get('orderBy'))) {
+            $query->withCount(['predictions as valid_predictions_count' => function ($q) {
+                $q->whereNotNull('sales_quantity');
+            }])->orderBy('valid_predictions_count', 'DESC');
+        }
+
+        return $query;
+    }
 
     /**
      * Get the fields displayed by the resource.

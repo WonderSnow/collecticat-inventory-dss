@@ -10,13 +10,18 @@ class OrdersTrend extends Trend
 {
     /**
      * Calculate the value of the metric.
+     * Maps dates as X-axis keys and confirmed order counts as Y-axis values.
      *
      * @param  \Laravel\Nova\Http\Requests\NovaRequest  $request
      * @return mixed
      */
     public function calculate(NovaRequest $request)
     {
-        return $this->countByDays($request, Order::whereStatus(Order::STATUS_CONFIRMED), 'created_at');
+        return $this->countByDays(
+            $request, 
+            Order::whereStatus(Order::STATUS_CONFIRMED), 
+            'created_at'
+        );
     }
 
     /**
