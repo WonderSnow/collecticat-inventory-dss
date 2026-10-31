@@ -79,7 +79,7 @@ class Dss extends Resource
         'card_set_category'
     ];
 
-    /**
+   /**
      * Build an "index" query for the resource.
      *
      * @param  \Laravel\Nova\Http\Requests\NovaRequest  $request
@@ -88,7 +88,7 @@ class Dss extends Resource
      */
     public static function indexQuery(NovaRequest $request, $query)
     {
-        // If the user hasn't explicitly sorted by another column, sort by valid predictions count descending
+        // If the user hasn't explicitly sorted by another column, sort by products with available predictions first
         if (empty($request->get('orderBy'))) {
             $query->withCount(['predictions as valid_predictions_count' => function ($q) {
                 $q->whereNotNull('sales_quantity');
