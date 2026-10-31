@@ -88,11 +88,9 @@ class Dss extends Resource
      */
     public static function indexQuery(NovaRequest $request, $query)
     {
-        // If the user hasn't explicitly sorted by another column, sort by products with available predictions first
+        // Sort products that have at least one valid prediction to the top
         if (empty($request->get('orderBy'))) {
-            $query->withCount(['predictions as valid_predictions_count' => function ($q) {
-                $q->whereNotNull('sales_quantity');
-            }])->orderBy('valid_predictions_count', 'DESC');
+            $query->orderByRaw("(SELECT COUNT(*) FROM predictions WHERE predictions.product_id = products.id AND sales_quantity IS NOT NULL) DESC");
         }
 
         return $query;
