@@ -10,7 +10,7 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 
 class User extends Authenticatable
 {
-    use HasApiTokens, HasFactory, Notifiable;
+    use Notifiable, HasApiTokens, HasFactory;
 
     /**
      * The attributes that are mass assignable.
@@ -52,4 +52,10 @@ class User extends Authenticatable
         'email_verified_at' => 'datetime',
         'verified_at' => 'datetime',
     ];
+
+    public function getNovaAvatarAttribute()
+{
+    // If your avatar is stored in public storage or as an asset path
+    return $this->avatar ? asset('images/avatars/' . $this->avatar) : null;
+}
 }

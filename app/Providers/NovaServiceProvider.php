@@ -7,6 +7,7 @@ use App\Nova\Metrics\Users;
 use App\Nova\Metrics\Quotas;
 use Laravel\Nova\Cards\Help;
 use Laravel\Nova\Fields\Text;
+use Laravel\Nova\Fields\Select;
 use App\Nova\Metrics\Products;
 use Laravel\Nova\Fields\Image;
 use App\Nova\Metrics\OrdersTrend;
@@ -45,8 +46,14 @@ class NovaServiceProvider extends NovaApplicationServiceProvider
 
         Nova::style('custom-nova-style', asset('css/nova-custom.css'));
         
+        // Combined Settings & User Profile Fields
+        // Combined Settings & User Profile Fields
         NovaSettings::addSettingsFields([
-            Text::make('Logo URL', 'logo'),
+            // Logo URL: Visible and editable ONLY by Administrators
+            Text::make('Logo URL', 'logo')
+                ->canSee(function ($request) {
+                    return $request->user() && $request->user()->role === \App\Models\User::ROLE_ADMIN;
+                }),
         ]);
     }
 
@@ -101,7 +108,7 @@ class NovaServiceProvider extends NovaApplicationServiceProvider
         }
 
         return [
-            // Your existing timezones & metrics below (anonymous card removed)
+            // Time card (visible if config allows)
             (new \Richardkeep\NovaTimenow\NovaTimenow)->timezones([
                 'Africa/Nairobi',
                 'America/Mexico_City',
@@ -114,9 +121,19 @@ class NovaServiceProvider extends NovaApplicationServiceProvider
                 return config('novax.time_enabled');
             })->width('1/3'),
 
-            Products::make()->withMeta(['name' => 'Products Transferred into the System'])->width('1/3'),
-            ConfirmedOrders::make()->width('1/3'),
+            // Products Transferred card (Admin only)
+            Products::make()
+                ->withMeta(['name' => 'Products Transferred into the System'])
+                ->width('1/3'),
 
+            // Confirmed Orders card (Admin only)
+            ConfirmedOrders::make()
+                ->width('1/3')
+                ->canSee(function ($request) {
+                    return auth()->user()->role === \App\Models\User::ROLE_ADMIN;
+                }),
+
+            // Daily Quota progress bar (Visible to everyone)
             (new ProgressBar)->options([
                 'title' => "Daily Quota: {$quota} | Sold: {$orderToday}",
                 'percentage' => $quota_percentage,
@@ -144,7 +161,9 @@ class NovaServiceProvider extends NovaApplicationServiceProvider
         return [
             (new ProfileTool)->canSee(fn () => config('novax.profile_enabled')),
             (new BackupTool)->canSee(fn () => config('novax.back_up_enabled')),
-            (new NovaSettings)->canSee(fn () => config('novax.setting_enabled')),
+            (new NovaSettings)->canSee(function ($request) {
+                return $request->user() && $request->user()->role === \App\Models\User::ROLE_ADMIN;
+            }),
         ];
     }
 

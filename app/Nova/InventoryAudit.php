@@ -96,25 +96,45 @@ class InventoryAudit extends Resource
             }),
 
             Text::make('Changes', function () {
-                // If the product was just created, display this custom message
-                if (strtolower($this->action) === 'created') {
+                $actionLower = strtolower($this->action);
+                
+                if ($actionLower === 'created' && empty($this->changes)) {
                     return '<span style="opacity:0.8;">All changes are applied.</span>';
                 }
 
                 $changes = $this->changes;
 
                 if (is_string($changes)) {
-                    $changes = json_decode($changes, true);
+                    $decoded = json_decode($changes, true);
+                    if (json_last_error() === JSON_ERROR_NONE) {
+                        $changes = $decoded;
+                    } else {
+                        return "<span>" . htmlspecialchars($changes) . "</span>";
+                    }
                 }
 
-                if (!$changes || !is_array($changes)) {
+                if (!$changes) {
+                    return '<span style="opacity:0.6;">No changes</span>';
+                }
+
+                // Handle flat array list of messages
+                $isList = is_array($changes) && array_keys($changes) === range(0, count($changes) - 1);
+                if ($isList) {
+                    $output = [];
+                    foreach ($changes as $line) {
+                        $output[] = "<div style='margin-bottom:4px;'><span>" . htmlspecialchars($line) . "</span></div>";
+                    }
+                    return implode('', $output);
+                }
+
+                if (!is_array($changes)) {
                     return '<span style="opacity:0.6;">No changes</span>';
                 }
 
                 $output = [];
 
                 foreach ($changes as $field => $values) {
-                    if (isset($values['old']) && isset($values['new'])) {
+                    if (is_array($values) && isset($values['old']) && isset($values['new'])) {
                         $old = $values['old'];
                         $new = $values['new'];
 
@@ -133,6 +153,13 @@ class InventoryAudit extends Resource
                                 <span>{$old}</span>
                                 <span style='opacity:0.6;'>→</span>
                                 <span>{$new}</span>
+                            </div>
+                        ";
+                    } else {
+                        $output[] = "
+                            <div style='margin-bottom:4px;'>
+                                <strong>" . ucfirst($field) . ":</strong>
+                                <span>" . htmlspecialchars(is_array($values) ? json_encode($values) : $values) . "</span>
                             </div>
                         ";
                     }
@@ -184,7 +211,7 @@ class InventoryAudit extends Resource
     }
 
     /**
-     * Get the actions available for the resource.
+     * Get the actions available for the request.
      *
      * @param  \Illuminate\Http\Request  $request
      * @return array

@@ -116,7 +116,7 @@ Route::group(['middleware' => function ($request, $next) {
                 'prediction_for' => $intervals[$sales->count()-1],
                 'interval' => $period,
                 'sales_quantity' => $prediction,
-                'stock_recommendation' => max(0, ($prediction - $product->default_stock)),
+                'stock_recommendation' => max(0, ($prediction + $product->default_stock)),
                 'product_id' => $product_id,
             ]
         );

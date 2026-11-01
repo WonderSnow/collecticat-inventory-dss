@@ -197,7 +197,7 @@ class Product extends Resource
 
             Currency::make("Price")
                 ->sortable()
-                ->rules("required", "min:0"),
+                ->rules("required", "numeric", "min:1"),
 
             Number::make('Default Stock', 'default_stock')
                 ->rules('required','integer','min:0')

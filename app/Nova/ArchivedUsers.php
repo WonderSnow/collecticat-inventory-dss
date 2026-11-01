@@ -8,6 +8,7 @@ use Laravel\Nova\Fields\Date;
 use Laravel\Nova\Fields\Text;
 use Laravel\Nova\Fields\Select;
 use Laravel\Nova\Http\Requests\NovaRequest;
+use Laravel\Nova\Fields\DateTime;
 
 class ArchivedUser extends Resource
 {
@@ -86,6 +87,23 @@ class ArchivedUser extends Resource
             Text::make('Date Archived', function () {
                 return $this->updated_at?->toDateString() ?? 'N/A';
             }),
+
+            DateTime::make('Created At', 'created_at')
+                ->exceptOnForms()
+                ->hideFromIndex(),
+
+            Text::make('Created By', function () {
+                if ($this->email === 'admin@yopmail.com') {
+                    return '—';
+                }
+
+                $audit = \App\Models\InventoryAudit::where('card_name', 'User: ' . $this->name)
+                    ->where('action', 'Created')
+                    ->with('user')
+                    ->first();
+
+                return $audit && $audit->user ? $audit->user->name : 'Inventory Administrator';
+            }) ->hideFromIndex(),
         ];
     }
 

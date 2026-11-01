@@ -11,6 +11,7 @@ use Laravel\Nova\Fields\Select;
 use Laravel\Nova\Fields\HasMany;
 use Laravel\Nova\Fields\Password;
 use Illuminate\Validation\Rule;
+use Laravel\Nova\Fields\DateTime;
 use Laravel\Nova\Http\Requests\NovaRequest;
 
 class User extends Resource
@@ -90,14 +91,12 @@ class User extends Resource
                     'DISACTIVATE' => 'DISACTIVATE',
                     'ARCHIVE' => 'ARCHIVE',
                 ])
-                // This controls how it appears on index/detail views ("DISACTIVATED")
                 ->displayUsing(function ($value) {
                     if ($value === 'DISACTIVATE') {
                         return 'DISACTIVATED';
                     }
                     return $value ?? 'ACTIVE';
                 })
-                // This controls how it resolves when loading the form dropdown
                 ->resolveUsing(fn ($value) => $value ?? 'ACTIVE')
                 ->default('ACTIVE')
                 ->hideWhenCreating()
@@ -115,6 +114,7 @@ class User extends Resource
                     Rule::requiredIf(fn () => $request->input('role') === \App\Models\User::ROLE_EMPLOYEE),
                     'nullable',
                     'integer',
+                    'max:100',
                     function ($attribute, $value, $fail) use ($request) {
                         if ($request->input('role') === \App\Models\User::ROLE_EMPLOYEE && (int)$value < 1) {
                             $fail('The quota must be at least 1 when the role is Employee.');
@@ -142,7 +142,28 @@ class User extends Resource
                 ->sortable()
                 ->nullable()
                 ->hideWhenCreating()
-                ->hideWhenUpdating(),
+                ->hideWhenUpdating()
+                ->hideFromIndex(),
+            
+            DateTime::make('Created At', 'created_at')
+                ->sortable()
+                ->exceptOnForms()
+                ->hideFromIndex(),
+
+            // 👇 Add this field to show who created the account
+            Text::make('Created By', function () {
+                if ($this->email === 'admin@yopmail.com') {
+                    return '—';
+                }
+
+                // If you are tracking the creator via a column or relationship on your users table:
+                // (e.g., if you have a `created_by` foreign key column pointing to the admin's ID)
+                if (isset($this->creator) && $this->creator) {
+                    return $this->creator->name;
+                }
+
+                return 'Inventory Administrator'; // Fallback name
+            })->hideFromIndex(),
 
             Text::make('Date Archived', function () {
                 return $this->status === 'ARCHIVE' ? ($this->updated_at?->toDateString() ?? '-') : '-';
@@ -157,7 +178,6 @@ class User extends Resource
 
     public static function indexQuery(NovaRequest $request, $query)
     {
-        // Show ACTIVE and DISACTIVATE users in the main table, but hide ARCHIVE users
         return $query->where(function ($q) {
             $q->where('status', '!=', 'ARCHIVE')
               ->orWhereNull('status');

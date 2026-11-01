@@ -63,70 +63,77 @@
                 </div>
 
                 <div data-testid="content" class="px-view py-view mx-auto">
-                    <!-- ✅ Website Summary Heading -->
-                    <div class="flex items-center mb-6" id="dashboardHeadingWrapper" style="display: none;">
-                        <h1 class="text-90 font-normal text-2xl">Website Summary</h1>
-                    </div>
+                    
+                    @php
+                        $isAdmin = auth()->check() && auth()->user()->role === \App\Models\User::ROLE_ADMIN;
+                    @endphp
 
-                    <!-- ✅ Real-Time Order Trend Graph Card -->
-                    <div class="card p-6 mb-6" id="trendCardContainer" style="border-radius: 8px; width: 100%; display: none;">
-                        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem;">
-                            <h3 id="trendCardTitle" style="font-size: 1.125rem; font-weight: bold;">Order Trend</h3>
-                            <div>
-                                <select id="trendRangeSelect" style="padding: 0.35rem 0.75rem; border-radius: 6px; font-size: 0.875rem; outline: none; cursor: pointer;">
-                                    <option value="week">This Week (Sun - Sat)</option>
-                                    <option value="month" selected>This Month (Realtime)</option>
-                                    <option value="today">Yearly</option>
-                                </select>
+                    @if($isAdmin)
+                        <!-- ✅ Website Summary Heading -->
+                        <div class="flex items-center mb-6" id="dashboardHeadingWrapper" style="display: none;">
+                            <h1 class="text-90 font-normal text-2xl">Website Summary</h1>
+                        </div>
+
+                        <!-- ✅ Real-Time Order Trend Graph Card -->
+                        <div class="card p-6 mb-6" id="trendCardContainer" style="border-radius: 8px; width: 100%; display: none;">
+                            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem;">
+                                <h3 id="trendCardTitle" style="font-size: 1.125rem; font-weight: bold;">Order Trend</h3>
+                                <div>
+                                    <select id="trendRangeSelect" style="padding: 0.35rem 0.75rem; border-radius: 6px; font-size: 0.875rem; outline: none; cursor: pointer;">
+                                        <option value="week">This Week (Sun - Sat)</option>
+                                        <option value="month" selected>This Month (Realtime)</option>
+                                        <option value="today">Yearly</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div style="position: relative; height: 380px; width: 100%;">
+                                <canvas id="siteOrderTrendCanvas"></canvas>
                             </div>
                         </div>
-                        <div style="position: relative; height: 380px; width: 100%;">
-                            <canvas id="siteOrderTrendCanvas"></canvas>
-                        </div>
-                    </div>
 
-                    <!-- ✅ Summary Cards Section -->
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6" id="summaryMetricsContainer" style="display: none; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1.5rem;">
-                        <!-- Card 1: Overall Revenues -->
-                        <div class="card p-6" id="metricCard1" style="border-radius: 8px;">
-                            <p class="text-sm font-semibold uppercase tracking-wider" id="metricLabel1" style="color: #6b7280; margin-bottom: 0.5rem;">Overall Revenues</p>
-                            @php
-                                $confirmedOrderIds = \App\Models\Order::where('status', \App\Models\Order::STATUS_CONFIRMED)->pluck('id');
-                                $overallRevenues = \App\Models\OrderItem::whereIn('order_id', $confirmedOrderIds)
-                                    ->sum(\Illuminate\Support\Facades\DB::raw('qty * price'));
-                            @endphp
-                            <h2 class="text-2xl font-bold" id="metricValue1" style="font-size: 1.75rem;">₱{{ number_format($overallRevenues ?? 0, 2) }}</h2>
-                        </div>
-
-                        <!-- Card 2: Highly Ordered Card -->
-                        <div class="card p-6" id="metricCard2" style="border-radius: 8px;">
-                            <p class="text-sm font-semibold uppercase tracking-wider" id="metricLabel2" style="color: #6b7280; margin-bottom: 0.5rem;">Highly Ordered Card</p>
-                            @php
-                                $topItem = \App\Models\OrderItem::select('product_id', \Illuminate\Support\Facades\DB::raw('sum(qty) as total_qty'))
-                                    ->whereIn('order_id', $confirmedOrderIds)
-                                    ->groupBy('product_id')
-                                    ->orderByDesc('total_qty')
-                                    ->with('product')
-                                    ->first();
-                                $topProductName = $topItem && $topItem->product ? $topItem->product->name : ($topItem->product_id ?? 'N/A');
-                            @endphp
-                            <h2 class="text-2xl font-bold" id="metricValue2" style="font-size: 1.25rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="{{ $topProductName }}">{{ $topProductName }}</h2>
-                        </div>
-
-                        <!-- Card 3: Total Revenue from Highly Ordered Card -->
-                        <div class="card p-6" id="metricCard3" style="border-radius: 8px;">
-                            <p class="text-sm font-semibold uppercase tracking-wider" id="metricLabel3" style="color: #6b7280; margin-bottom: 0.5rem;">Top Item Revenue</p>
-                            @php
-                                $topItemRevenue = 0;
-                                if ($topItem) {
-                                    $topItemRevenue = \App\Models\OrderItem::whereIn('order_id', $confirmedOrderIds)
-                                        ->where('product_id', $topItem->product_id)
+                        <!-- ✅ Summary Cards Section -->
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6" id="summaryMetricsContainer" style="display: none; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1.5rem;">
+                            <!-- Card 1: Overall Revenues -->
+                            <div class="card p-6" id="metricCard1" style="border-radius: 8px;">
+                                <p class="text-sm font-semibold uppercase tracking-wider" id="metricLabel1" style="color: #6b7280; margin-bottom: 0.5rem;">Overall Revenues</p>
+                                @php
+                                    $confirmedOrderIds = \App\Models\Order::where('status', \App\Models\Order::STATUS_CONFIRMED)->pluck('id');
+                                    $overallRevenues = \App\Models\OrderItem::whereIn('order_id', $confirmedOrderIds)
                                         ->sum(\Illuminate\Support\Facades\DB::raw('qty * price'));
-                                }
-                            @endphp
-                            <h2 class="text-2xl font-bold" id="metricValue3" style="font-size: 1.75rem;">₱{{ number_format($topItemRevenue, 2) }}</h2>
+                                @endphp
+                                <h2 class="text-2xl font-bold" id="metricValue1" style="font-size: 1.75rem;">₱{{ number_format($overallRevenues ?? 0, 2) }}</h2>
+                            </div>
+
+                            <!-- Card 2: Highly Ordered Card -->
+                            <div class="card p-6" id="metricCard2" style="border-radius: 8px;">
+                                <p class="text-sm font-semibold uppercase tracking-wider" id="metricLabel2" style="color: #6b7280; margin-bottom: 0.5rem;">Highly Ordered Card</p>
+                                @php
+                                    $topItem = \App\Models\OrderItem::select('product_id', \Illuminate\Support\Facades\DB::raw('sum(qty) as total_qty'))
+                                        ->whereIn('order_id', $confirmedOrderIds)
+                                        ->groupBy('product_id')
+                                        ->orderByDesc('total_qty')
+                                        ->with('product')
+                                        ->first();
+                                    $topProductName = $topItem && $topItem->product ? $topItem->product->name : ($topItem->product_id ?? 'N/A');
+                                @endphp
+                                <h2 class="text-2xl font-bold" id="metricValue2" style="font-size: 1.25rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="{{ $topProductName }}">{{ $topProductName }}</h2>
+                            </div>
+
+                            <!-- Card 3: Total Revenue from Highly Ordered Card -->
+                            <div class="card p-6" id="metricCard3" style="border-radius: 8px;">
+                                <p class="text-sm font-semibold uppercase tracking-wider" id="metricLabel3" style="color: #6b7280; margin-bottom: 0.5rem;">Top Item Revenue</p>
+                                @php
+                                    $topItemRevenue = 0;
+                                    if ($topItem) {
+                                        $topItemRevenue = \App\Models\OrderItem::whereIn('order_id', $confirmedOrderIds)
+                                            ->where('product_id', $topItem->product_id)
+                                            ->sum(\Illuminate\Support\Facades\DB::raw('qty * price'));
+                                    }
+                                @endphp
+                                <h2 class="text-2xl font-bold" id="metricValue3" style="font-size: 1.75rem;">₱{{ number_format($topItemRevenue, 2) }}</h2>
+                            </div>
                         </div>
-                    </div>
+                    @endif
 
                     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
                     <script>
@@ -344,15 +351,12 @@
     <script>
         document.addEventListener("DOMContentLoaded", function () {
             const observer = new MutationObserver(() => {
-                // Find all <select> elements that represent action selectors
                 const selects = document.querySelectorAll('select');
                 selects.forEach(select => {
-                    // Check if this select is the action dropdown (usually has options or is inside an action toolbar)
                     if (select.closest('div')) {
                         const toolbar = select.closest('div');
                         const btn = toolbar.querySelector('button:not(.proceed-replaced)');
                         
-                        // Verify the button has an SVG and is right next to the action select
                         if (btn && btn.querySelector('svg') && !btn.classList.contains('proceed-replaced')) {
                             btn.innerHTML = '<span style="font-weight: 600; padding: 2px 8px; color: #ffffff;">Proceed</span>';
                             btn.style.width = 'auto';
