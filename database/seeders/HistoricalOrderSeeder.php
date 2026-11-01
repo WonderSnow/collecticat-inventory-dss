@@ -20,10 +20,15 @@ class HistoricalOrderSeeder extends Seeder
             $orderCount = rand(100, 150);
 
             for ($i = 0; $i < $orderCount; $i++) {
-                $randomDay = Carbon::create(2024, 1, 1)
+                $randomDay = Carbon::now()->subYears(2)
                     ->addDays(rand(0, 730))
                     ->setHour(rand(8, 20))
                     ->setMinute(rand(0, 59));
+
+                // Prevent future dates if random days exceed current time
+                if ($randomDay->isFuture()) {
+                    $randomDay = Carbon::now();
+                }
 
                 $order = Order::create([
                     'employee_id' => $employee?->id ?? 1,
@@ -35,7 +40,7 @@ class HistoricalOrderSeeder extends Seeder
                 OrderItem::create([
                     'order_id' => $order->id,
                     'product_id' => $product->id,
-                    'qty' => rand(1, 5), // Matches your database column 'qty'
+                    'qty' => rand(1, 5),
                     'price' => $product->price,
                     'created_at' => $randomDay,
                     'updated_at' => $randomDay,
