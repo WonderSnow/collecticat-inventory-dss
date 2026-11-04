@@ -10,6 +10,41 @@
     transition: 0.3s;
 }
 
+/* ✅ Back to Inventory Button Styles */
+.back-btn {
+    display: inline-flex;
+    align-items: center.
+    gap: 6px;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 600;
+    text-decoration: none;
+    margin-bottom: 16px;
+    transition: 0.2s;
+}
+
+html[data-theme="dark"] .back-btn {
+    background: #1f2937;
+    color: #e5e7eb;
+    border: 1px solid #374151;
+}
+
+html[data-theme="dark"] .back-btn:hover {
+    background: #374151;
+    color: #ffffff;
+}
+
+html[data-theme="light"] .back-btn {
+    background: #f3f4f6;
+    color: #111827;
+    border: 1px solid #d1d5db;
+}
+
+html[data-theme="light"] .back-btn:hover {
+    background: #e5e7eb;
+}
+
 /* DARK MODE */
 html[data-theme="dark"] .chart-toggle-btn {
     background: #1f2937;
@@ -59,6 +94,11 @@ html[data-theme="light"] .stockout-box {
 </style>
 
 <div class="px-8 py-6">
+
+    <!-- ✅ Back to Inventory Button -->
+    <a href="{{ url('/admin/resources/dsses') }}" class="back-btn">
+        &larr; Back to Inventory
+    </a>
 
     <h1 class="text-2xl font-bold mb-4">
         {{ $product->name }} Demand Frequency
@@ -565,7 +605,6 @@ function loadTrend(type, monthValue = null) {
 
             let countOfDays = sales.length > 0 ? sales.length : 1;
             
-            // ✅ Format sales rate with up to 2 decimal places if it contains decimals (e.g., 0.17)
             let rawRate = displayedTotalStocks / countOfDays;
             let formattedRate = Number.isInteger(rawRate) ? rawRate.toLocaleString() : rawRate.toFixed(2);
 
