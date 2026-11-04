@@ -99,7 +99,7 @@ transform:translateY(-4px);
 <nav class="navbar navbar-expand-lg">
 <div class="container d-flex justify-content-between">
 
-<a class="navbar-brand text-white" href="/">Laravel</a>
+<a class="navbar-brand text-white" href="/">Collecticat</a>
 
 <button id="themeToggle" class="btn btn-sm btn-outline-light">
 Toggle Theme
