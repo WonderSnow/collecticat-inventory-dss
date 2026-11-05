@@ -31,6 +31,8 @@ class NovaServiceProvider extends NovaApplicationServiceProvider
 
     public function boot()
     {
+        // Inject custom mobile-responsive CSS for Nova dashboard
+        Nova::style('nova-mobile-fixes', public_path('css/nova-mobile.css'));
         Nova::resources([
             \App\Nova\Product::class,
             \App\Nova\Order::class,
@@ -107,8 +109,12 @@ class NovaServiceProvider extends NovaApplicationServiceProvider
             $quota_percentage = $orderToday / $quota;
         }
 
+        // Check if the user agent is mobile to stack cards naturally
+        $isMobile = request()->header('User-Agent') && preg_match('/Mobile|Android|iPhone|iPad/i', request()->header('User-Agent'));
+        $cardWidth = $isMobile ? '1/1' : '1/3';
+
         return [
-            // Time card (visible if config allows)
+            // Time card
             (new \Richardkeep\NovaTimenow\NovaTimenow)->timezones([
                 'Africa/Nairobi',
                 'America/Mexico_City',
@@ -119,25 +125,25 @@ class NovaServiceProvider extends NovaApplicationServiceProvider
             ])->defaultTimezone('Asia/Manila')
             ->canSee(function () {
                 return config('novax.time_enabled');
-            })->width('1/3'),
+            })->width($cardWidth),
 
-            // Products Transferred card (Admin only)
+            // Products Transferred card
             Products::make()
                 ->withMeta(['name' => 'Products Transferred into the System'])
-                ->width('1/3'),
+                ->width($cardWidth),
 
-            // Confirmed Orders card (Admin only)
+            // Confirmed Orders card
             ConfirmedOrders::make()
-                ->width('1/3')
+                ->width($cardWidth)
                 ->canSee(function ($request) {
                     return auth()->user()->role === \App\Models\User::ROLE_ADMIN;
                 }),
 
-            // Daily Quota progress bar (Visible to everyone)
+            // Daily Quota progress bar
             (new ProgressBar)->options([
                 'title' => "Daily Quota: {$quota} | Sold: {$orderToday}",
                 'percentage' => $quota_percentage,
-            ])->width('1/3'),
+            ])->width($cardWidth),
         ];
     }
 

@@ -1,0 +1,32 @@
+/* ===== Laravel Nova Mobile Dashboard Layout Fix ===== */
+@media (max-width: 768px) {
+    /* Force Nova's dashboard card container to wrap items cleanly */
+    .content div[class*="flex"] {
+        display: flex !important;
+        flex-wrap: wrap !important;
+        gap: 16px !important;
+        width: 100% !important;
+    }
+
+    /* Force every dashboard card to take full width and clear any absolute positioning */
+    .content div[class*="flex"] > div,
+    .content .card,
+    card,
+    metric-card {
+        flex: 0 0 100% !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        position: relative !important;
+        margin-top: 0 !important;
+        margin-bottom: 0 !important;
+        transform: none !important;
+        left: auto !important;
+        top: auto !important;
+    }
+
+    /* Prevent charts from overflowing */
+    canvas {
+        max-width: 100% !important;
+        height: auto !important;
+    }
+}
