@@ -29,6 +29,22 @@
     @foreach(\Laravel\Nova\Nova::themeStyles() as $publicPath)
         <link rel="stylesheet" href="{{ $publicPath }}">
     @endforeach
+
+    <!-- ✅ Mobile Responsive Override for Website Summary Cards -->
+    <style>
+        @media (max-width: 768px) {
+            #summaryMetricsContainer {
+                display: flex !important;
+                flex-direction: column !important;
+                grid-template-columns: 1fr !important;
+                gap: 1rem !important;
+            }
+            #summaryMetricsContainer > div {
+                width: 100% !important;
+                max-width: 100% !important;
+            }
+        }
+    </style>
 </head>
 <body class="min-w-site bg-40 text-90 font-medium min-h-full">
     <div id="nova">
