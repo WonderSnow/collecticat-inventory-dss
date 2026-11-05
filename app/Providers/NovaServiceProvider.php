@@ -31,8 +31,7 @@ class NovaServiceProvider extends NovaApplicationServiceProvider
 
     public function boot()
     {
-        // Inject custom mobile-responsive CSS for Nova dashboard
-        Nova::style('nova-mobile-fixes', public_path('css/nova-mobile.css'));
+        
         Nova::resources([
             \App\Nova\Product::class,
             \App\Nova\Order::class,
@@ -109,9 +108,7 @@ class NovaServiceProvider extends NovaApplicationServiceProvider
             $quota_percentage = $orderToday / $quota;
         }
 
-        // Check if the user agent is mobile to stack cards naturally
-        $isMobile = request()->header('User-Agent') && preg_match('/Mobile|Android|iPhone|iPad/i', request()->header('User-Agent'));
-        $cardWidth = $isMobile ? '1/1' : '1/3';
+        
 
         return [
             // Time card
