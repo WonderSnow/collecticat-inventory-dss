@@ -28,10 +28,8 @@ class NovaServiceProvider extends NovaApplicationServiceProvider
      *
      * @return void
      */
-
     public function boot()
     {
-        
         Nova::resources([
             \App\Nova\Product::class,
             \App\Nova\Order::class,
@@ -47,7 +45,6 @@ class NovaServiceProvider extends NovaApplicationServiceProvider
 
         Nova::style('custom-nova-style', asset('css/nova-custom.css'));
         
-        // Combined Settings & User Profile Fields
         // Combined Settings & User Profile Fields
         NovaSettings::addSettingsFields([
             // Logo URL: Visible and editable ONLY by Administrators
@@ -108,8 +105,6 @@ class NovaServiceProvider extends NovaApplicationServiceProvider
             $quota_percentage = $orderToday / $quota;
         }
 
-        
-
         return [
             // Time card
             (new \Richardkeep\NovaTimenow\NovaTimenow)->timezones([
@@ -122,16 +117,16 @@ class NovaServiceProvider extends NovaApplicationServiceProvider
             ])->defaultTimezone('Asia/Manila')
             ->canSee(function () {
                 return config('novax.time_enabled');
-            })->width($cardWidth),
+            })->width('1/3'),
 
             // Products Transferred card
             Products::make()
                 ->withMeta(['name' => 'Products Transferred into the System'])
-                ->width($cardWidth),
+                ->width('1/3'),
 
             // Confirmed Orders card
             ConfirmedOrders::make()
-                ->width($cardWidth)
+                ->width('1/3')
                 ->canSee(function ($request) {
                     return auth()->user()->role === \App\Models\User::ROLE_ADMIN;
                 }),
@@ -140,7 +135,7 @@ class NovaServiceProvider extends NovaApplicationServiceProvider
             (new ProgressBar)->options([
                 'title' => "Daily Quota: {$quota} | Sold: {$orderToday}",
                 'percentage' => $quota_percentage,
-            ])->width($cardWidth),
+            ])->width('1/3'),
         ];
     }
 
