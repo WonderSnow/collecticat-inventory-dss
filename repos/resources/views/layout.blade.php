@@ -30,7 +30,7 @@
         <link rel="stylesheet" href="{{ $publicPath }}">
     @endforeach
 
-    <!-- ✅ Mobile Responsive Override for Website Summary Cards -->
+    <!-- ✅ Mobile Responsive & Visibility Fix for Website Summary Cards -->
     <style>
         @media (max-width: 768px) {
             #summaryMetricsContainer {
@@ -292,17 +292,18 @@
                             if (!container || !heading || !metrics) return;
 
                             const path = window.location.pathname;
-                            const isDashboard = path === '/admin' || path === '/admin/' || path.includes('/admin/dashboards/main');
+                            // Strictly check if we are on the main dashboard home page
+                            const isDashboard = path === '/admin' || path === '/admin/' || path === '/admin/dashboards/main';
 
                             if (isDashboard) {
-                                container.style.display = 'block';
-                                metrics.style.display = 'grid';
-                                heading.style.display = 'flex';
+                                container.style.setProperty('display', 'block', 'important');
+                                metrics.style.setProperty('display', 'grid', 'important');
+                                heading.style.setProperty('display', 'flex', 'important');
                                 renderChart(document.getElementById('trendRangeSelect').value);
                             } else {
-                                container.style.display = 'none';
-                                metrics.style.display = 'none';
-                                heading.style.display = 'none';
+                                container.style.setProperty('display', 'none', 'important');
+                                metrics.style.setProperty('display', 'none', 'important');
+                                heading.style.setProperty('display', 'none', 'important');
                             }
                         }
 
