@@ -36,7 +36,6 @@ class ForgotPasswordController extends Controller
 
     /**
      * Proceed to verification form after confirming email exists.
-     * (No automatic code is generated/sent here anymore).
      *
      * @param  \Illuminate\Http\Request  $request
      * @return \Illuminate\Http\RedirectResponse
@@ -77,7 +76,19 @@ class ForgotPasswordController extends Controller
         $request->validate([
             'email' => 'required|email|exists:users,email',
             'code' => 'required|digits:6|numeric',
-            'password' => 'required|min:8|confirmed',
+            'password' => [
+                'required',
+                'string',
+                'min:16',
+                'regex:/[A-Z]/', // At least 1 capital letter
+                'regex:/[a-z]/', // At least 1 small letter
+                'regex:/[0-9]/', // At least 1 number
+                'regex:#[\(\-\_\+\=\!\@\#\$\%\^\&\*\{\}\[\]\\\/\"\'\:\;]#', // At least 1 special character
+                'confirmed',
+            ],
+        ], [
+            'password.min' => 'The password must be at least 16 characters long, contain at least 1 capital letter, 1 small letter, 1 number, and 1 special character.',
+            'password.regex' => 'The password must be at least 16 characters long, contain at least 1 capital letter, 1 small letter, 1 number, and 1 special character.',
         ]);
 
         $user = User::where('email', $request->email)->first();
