@@ -1,27 +1,28 @@
-/* ===== Safe Laravel Nova Mobile Layout & Header Fix ===== */
+/* ===== Clean Laravel Nova Mobile Fix ===== */
 @media (max-width: 768px) {
-    /* Ensure content area fits mobile screens */
+    /* Prevent horizontal overflow on mobile screens */
     .content {
         padding: 10px !important;
         max-width: 100% !important;
         overflow-x: hidden !important;
     }
 
-    /* Force dashboard card flex containers to wrap onto multiple lines smoothly */
-    .content .flex,
-    .content div[class*="flex"] {
-        flex-wrap: wrap !important;
+    /* Target the dashboard card section and stack items cleanly */
+    div[data-testid="dashboard"] {
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 16px !important;
+        width: 100% !important;
     }
 
-    /* Ensure cards take full width on mobile so they don't crowd or overlap */
-    .content .card,
-    .content div[class*="w-"] {
+    /* Force individual cards to take full width and avoid collision */
+    div[data-testid="dashboard"] > div {
         width: 100% !important;
         max-width: 100% !important;
-        margin-bottom: 1rem !important;
+        margin: 0 !important;
     }
 
-    /* Prevent charts and canvases from overflowing */
+    /* Prevent charts from breaking screen bounds */
     canvas {
         max-width: 100% !important;
         height: auto !important;
