@@ -13,7 +13,7 @@
 /* ✅ Back to Inventory Button Styles */
 .back-btn {
     display: inline-flex;
-    align-items: center.
+    align-items: center;
     gap: 6px;
     padding: 6px 12px;
     border-radius: 6px;
@@ -151,8 +151,8 @@ function isDarkMode() {
 
 function getTheme() {
     return isDarkMode()
-        ? { text:"#e5e7eb", grid:"#334155" }
-        : { text:"#111827", grid:"#e5e7eb" };
+        ? { text: "#e5e7eb", grid: "#334155" }
+        : { text: "#111827", grid: "#e5e7eb" };
 }
 
 /* ===== PROCESSING FUNCTIONS ===== */
@@ -510,7 +510,7 @@ function loadTrend(type, monthValue = null) {
             }
 
             Chart.defaults.font.family = 'Nunito';
-            Chart.defaults.color = '#ffffff';
+            Chart.defaults.color = theme.text;
             Chart.defaults.font.size = 14;
 
             chart = new Chart(ctx, {
@@ -570,13 +570,13 @@ function loadTrend(type, monthValue = null) {
                             }
                         },
                         legend: {
-                            labels: { color: "#ffffff", font: { size: 16, weight: 'bold' } }
+                            labels: { color: theme.text, font: { size: 16, weight: 'bold' } }
                         }
                     },
                     scales: {
                         x: {
-                            title: { display: true, text: xAxisTitle, color: "#ffffff", font: { size:20, weight:'bold' } },
-                            ticks: { color:"#ffffff", font:{size:14} },
+                            title: { display: true, text: xAxisTitle, color: theme.text, font: { size:20, weight:'bold' } },
+                            ticks: { color: theme.text, font:{size:14} },
                             grid: { color: theme.grid },
                             min: -0.5
                         },
@@ -586,11 +586,11 @@ function loadTrend(type, monthValue = null) {
                             title: {
                                 display: true,
                                 text: 'Orders',
-                                color: "#ffffff",
+                                color: theme.text,
                                 font: { size: 20, weight: 'bold' }
                             },
                             ticks: {
-                                color: "#ffffff",
+                                color: theme.text,
                                 font: { size: 14 }
                             },
                             grid: { color: theme.grid }
