@@ -93,14 +93,29 @@ class Product extends Resource
     {
         return [
             Text::make("Product Identification Digit", "sheet_id")
-                ->rules(["required"])
-                ->creationRules("unique:products,sheet_id")
-                ->updateRules("unique:products,sheet_id,{{resourceId}}")
-                ->sortable(),
+    ->rules([
+        'required',
+        function ($attribute, $value, $fail) {
+            if (!preg_match('/^P\d+$/', $value)) {
+                $fail('This is an invalid Product ID. Format: P followed by digits (e.g., P12345).');
+            }
+        },
+    ])
+    ->creationRules("unique:products,sheet_id")
+    ->updateRules("unique:products,sheet_id,{{resourceId}}")
+    ->sortable(),
 
             // Replaced Type Select field with Card Treatment (only on forms)
-            Text::make("Card Treatment", "card_set_treatment")
-                ->onlyOnForms(),
+Text::make("Card Treatment", "card_set_treatment")
+    ->rules([
+        'nullable',
+        function ($attribute, $value, $fail) {
+            if (!empty($value) && !preg_match('/^[a-zA-Z\s\-\(\),]+$/', $value)) {
+                $fail('The entered card treatment is invalid.');
+            }
+        },
+    ])
+    ->onlyOnForms(),
 
             Text::make("Category", "card_set_category")
                 ->rules(["required"])
@@ -112,8 +127,18 @@ class Product extends Resource
             })->asHtml(),
 
             Text::make("Image", "image")
-                ->rules(["required"])
-                ->onlyOnForms(),
+    ->rules([
+        'required',
+        function ($attribute, $value, $fail) {
+            $isValidUrl = filter_var($value, FILTER_VALIDATE_URL) !== false;
+            $isExactPlaceholder = $value === 'Image not yet available';
+
+            if (!$isValidUrl && !$isExactPlaceholder) {
+                $fail('The image must be a valid URL or "Image not yet available".');
+            }
+        },
+    ])
+    ->onlyOnForms(),
 
             Text::make("Name", function () {
                 $name = $this->name ?? "Unnamed Product";
@@ -217,16 +242,16 @@ class Product extends Resource
                     'Token' => 'Token',
                 ])
                 ->onlyOnForms()
-                ->rules('required', 'in:Mythic,Rare,Uncommon,Common,Artifact,Land, Token'),
+                ->rules('required', 'in:Mythic,Rare,Uncommon,Common,Artifact,Land,Token'),
 
             Number::make("Current Stock", "current_stock")
                 ->rules('required','integer','min:0')
                 ->sortable(),
 
-            Text::make('Name')
-                ->sortable()
-                ->rules('required', 'max:255')
-                ->onlyOnForms(),
+            Text::make('Product Name', 'name')
+    ->sortable()
+    ->rules('required', 'max:255')
+    ->onlyOnForms(),
         ];
     }
 

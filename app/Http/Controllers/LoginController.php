@@ -4,10 +4,8 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Laravel\Nova\Http\Controllers\LoginController as ControllersLoginController;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\ValidationException;
 use App\Models\User;
-use Illuminate\Support\Facades\Hash;
 
 class LoginController extends ControllersLoginController
 {
@@ -16,18 +14,37 @@ class LoginController extends ControllersLoginController
      *
      * @param  \Illuminate\Http\Request  $request
      * @return bool
+     *
+     * @throws \Illuminate\Validation\ValidationException
      */
     protected function attemptLogin(Request $request)
     {
-        // 1. Find the user by email first
+        // 1. Find the user attempting to log in
         $user = User::where($this->username(), $request->input($this->username()))->first();
 
-        // 2. If user exists, check if they are DISACTIVATE or ARCHIVE
+        // 2. If user exists and is blocked, throw validation exception immediately
         if ($user && in_array($user->status, ['ARCHIVE', 'DISACTIVATE'])) {
-            return false; // Reject login immediately without checking password or logging them in
+            throw ValidationException::withMessages([
+                $this->username() => ['Your account has been blocked. Please contact the administrator.'],
+            ]);
         }
 
-        // 3. Otherwise, proceed with normal Nova/Laravel login attempt
+        // 3. Otherwise, proceed with normal login attempt
         return parent::attemptLogin($request);
+    }
+
+    /**
+     * Get the failed login response instance.
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @return \Symfony\Component\HttpFoundation\Response
+     *
+     * @throws \Illuminate\Validation\ValidationException
+     */
+    protected function sendFailedLoginResponse(Request $request)
+    {
+        throw ValidationException::withMessages([
+            $this->username() => [trans('auth.failed')],
+        ]);
     }
 }

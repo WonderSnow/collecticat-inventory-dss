@@ -16,8 +16,11 @@ class BlockArchivedUsers
             $request->session()->invalidate();
             $request->session()->regenerateToken();
 
-            return redirect('/')->withErrors([
-                'email' => 'Your account has been archived and can no longer access the system.',
+            // Flash session error so it persists across redirects
+            session()->flash('error', 'Your account has been blocked. Please contact the administrator.');
+
+            return redirect('/nova/login')->withErrors([
+                'email' => 'Your account has been blocked. Please contact the administrator.',
             ]);
         }
 

@@ -12,6 +12,7 @@ use Laravel\Nova\Fields\HasMany;
 use Laravel\Nova\Fields\Password;
 use Illuminate\Validation\Rule;
 use Laravel\Nova\Fields\DateTime;
+use Laravel\Nova\Card;
 use Laravel\Nova\Http\Requests\NovaRequest;
 
 class User extends Resource
@@ -69,7 +70,7 @@ class User extends Resource
                     return true;
                 }),
 
-            Text::make('Name')
+            Text::make('Username', 'name')
                 ->sortable()
                 ->rules('required', 'max:255'),
 
@@ -109,22 +110,20 @@ class User extends Resource
                     return true;
                 }),
 
-            Number::make('Quota')
-                ->rules([
-                    Rule::requiredIf(fn () => $request->input('role') === \App\Models\User::ROLE_EMPLOYEE),
-                    'nullable',
-                    'integer',
-                    'max:100',
-                    function ($attribute, $value, $fail) use ($request) {
-                        if ($request->input('role') === \App\Models\User::ROLE_EMPLOYEE && (int)$value < 1) {
-                            $fail('The quota must be at least 1 when the role is Employee.');
-                        }
-                    },
-                ])
-                ->sortable()
-                ->canSee(fn () => !$isArchived),
+            Text::make('Quota', function () {
+                if ($this->email === 'admin@yopmail.com') {
+                    return '—';
+                }
+                return $this->quota ?? '—';
+            })
+            ->sortable()
+            ->canSee(fn () => !$isArchived),
 
             Text::make('Daily Progress', function () {
+                if ($this->email === 'admin@yopmail.com') {
+                    return '—';
+                }
+
                 $progress = $this->orders()->whereStatus(\App\Models\Order::STATUS_CONFIRMED)->whereDate('created_at', now())->count();
                 $quota = $this->quota ?? 0;
                 
@@ -184,10 +183,12 @@ class User extends Resource
         });
     }
 
-    public function cards(Request $request)
-    {
-        return [];
-    }
+public function cards(Request $request)
+{
+    return [
+        // Add any cards you want to display on the User resource page here
+    ];
+}
 
     public function filters(Request $request)
     {

@@ -71,3 +71,30 @@ div[data-testid="orders-trend"] .h-24,
 div[data-metric-url*="orders-trend"] .h-24 {
     height: 280px !important;
 }
+
+/* --- Fix Read-Only Settings Fields Background & Text Contrast --- */
+.nova-settings input[readonly], 
+.nova-settings input:read-only,
+input[readonly], 
+input:read-only {
+    background-color: var(--colors-gray-900, #111827) !important;
+    border-color: var(--colors-gray-700, #374151) !important;
+    color: var(--colors-gray-100, #f3f4f6) !important;
+    opacity: 1 !important;
+    cursor: not-allowed;
+}
+
+/* Light mode specific adjustment if needed */
+:not(.dark) input[readonly], 
+:not(.dark) input:read-only {
+    background-color: #f9fafb !important;
+    border-color: #d1d5db !important;
+    color: #1f2937 !important;
+}
+
+/* Hide the settings action/save bar when viewing as an Employee (when no Logo URL input exists) */
+body:has(input[name="role_display"]) .flex.items-center.justify-end.px-6.my-8,
+body:has(input[name="role_display"]) button[type="submit"],
+body:has(input[name="role_display"]) form .flex.justify-end {
+    display: none !important;
+}

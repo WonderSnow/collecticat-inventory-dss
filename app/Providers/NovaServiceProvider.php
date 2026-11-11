@@ -5,6 +5,7 @@ namespace App\Providers;
 use Laravel\Nova\Nova;
 use App\Nova\Metrics\Users;
 use App\Nova\Metrics\Quotas;
+use Laravel\Nova\Fields\Heading;
 use Laravel\Nova\Cards\Help;
 use Laravel\Nova\Fields\Text;
 use Laravel\Nova\Fields\Select;
@@ -45,6 +46,25 @@ class NovaServiceProvider extends NovaApplicationServiceProvider
 
         Nova::style('custom-nova-style', asset('css/nova-custom.css'));
         
+        // Completely remove the Save settings button from the DOM for non-admin users (Employees)
+        if (auth()->check() && auth()->user()->role !== \App\Models\User::ROLE_ADMIN) {
+            Nova::script('remove-employee-save-btn', '
+                const observer = new MutationObserver((mutations, obs) => {
+                    document.querySelectorAll("button").forEach(btn => {
+                        if (btn.textContent.includes("Save settings") || btn.textContent.includes("Save")) {
+                            const wrapper = btn.closest("div.flex.justify-end") || btn.parentElement;
+                            if (wrapper) {
+                                wrapper.remove();
+                            } else {
+                                btn.remove();
+                            }
+                        }
+                    });
+                });
+                observer.observe(document.body, { childList: true, subtree: true });
+            ');
+        }
+
         // Combined Settings & User Profile Fields
         NovaSettings::addSettingsFields([
             // Logo URL: Visible and editable ONLY by Administrators
@@ -52,6 +72,37 @@ class NovaServiceProvider extends NovaApplicationServiceProvider
                 ->canSee(function ($request) {
                     return $request->user() && $request->user()->role === \App\Models\User::ROLE_ADMIN;
                 }),
+
+            // Editable Gender Dropdown for both Admins and Employees
+            Select::make('Gender', 'gender')
+                ->options([
+                    'Male' => 'Male',
+                    'Female' => 'Female'
+                ])
+                ->displayUsingLabels(),
+
+            // Ineditable user info fields without using readonly
+            Text::make('Role', 'role_display')
+                ->resolveUsing(function () {
+                    $user = auth()->user();
+                    return ($user?->role === \App\Models\User::ROLE_ADMIN) ? 'Administrator' : 'Employee';
+                })
+                ->withMeta(['extraAttributes' => ['class' => 'pointer-events-none select-none', 'tabindex' => '-1']])
+                ->fillUsing(fn () => null),
+
+            Text::make('Username', 'username_display')
+                ->resolveUsing(function () {
+                    return auth()->user()?->name ?? 'N/A';
+                })
+                ->withMeta(['extraAttributes' => ['class' => 'pointer-events-none select-none', 'tabindex' => '-1']])
+                ->fillUsing(fn () => null),
+
+            Text::make('Email', 'email_display')
+                ->resolveUsing(function () {
+                    return auth()->user()?->email ?? 'N/A';
+                })
+                ->withMeta(['extraAttributes' => ['class' => 'pointer-events-none select-none', 'tabindex' => '-1']])
+                ->fillUsing(fn () => null),
         ]);
     }
 
@@ -105,7 +156,7 @@ class NovaServiceProvider extends NovaApplicationServiceProvider
             $quota_percentage = $orderToday / $quota;
         }
 
-        return [
+        $cards = [
             // Time card
             (new \Richardkeep\NovaTimenow\NovaTimenow)->timezones([
                 'Africa/Nairobi',
@@ -130,13 +181,17 @@ class NovaServiceProvider extends NovaApplicationServiceProvider
                 ->canSee(function ($request) {
                     return auth()->user()->role === \App\Models\User::ROLE_ADMIN;
                 }),
+        ];
 
-            // Daily Quota progress bar
-            (new ProgressBar)->options([
+        // Only add the Daily Quota progress bar if the user is NOT admin@yopmail.com
+        if (auth()->user()?->email !== 'admin@yopmail.com') {
+            $cards[] = (new ProgressBar)->options([
                 'title' => "Daily Quota: {$quota} | Sold: {$orderToday}",
                 'percentage' => $quota_percentage,
-            ])->width('1/3'),
-        ];
+            ])->width('1/3');
+        }
+
+        return $cards;
     }
 
     /**
@@ -157,11 +212,10 @@ class NovaServiceProvider extends NovaApplicationServiceProvider
     public function tools()
     {
         return [
-            (new ProfileTool)->canSee(fn () => config('novax.profile_enabled')),
-            (new BackupTool)->canSee(fn () => config('novax.back_up_enabled')),
-            (new NovaSettings)->canSee(function ($request) {
-                return $request->user() && $request->user()->role === \App\Models\User::ROLE_ADMIN;
-            }),
+            // Allow both admins and employees to access profile/settings tools
+            (new ProfileTool)->canSee(fn () => config('novax.profile_enabled', true)),
+            (new BackupTool)->canSee(fn () => config('novax.back_up_enabled') && auth()->user()->role === \App\Models\User::ROLE_ADMIN),
+            (new NovaSettings), // Enabled for all users so they can see their private information under settings
         ];
     }
 

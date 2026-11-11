@@ -8,9 +8,6 @@ use Laravel\Nova\Http\Requests\NovaRequest;
 use Laravel\Nova\Fields\Text;
 use Laravel\Nova\Fields\DateTime;
 
-
-
-
 class Archive extends Resource
 {
     public static $group = "Records";
@@ -25,6 +22,7 @@ class Archive extends Resource
     {
         return 'Archived Product';
     }
+
     public function authorizedToUpdate(Request $request)
     {
         if ($request->has('action')) return true;
@@ -32,9 +30,9 @@ class Archive extends Resource
     }
 
     public static function authorizedToCreate(\Illuminate\Http\Request $request)
-{
-    return false;
-}
+    {
+        return false;
+    }
 
     /**
      * The model the resource corresponds to.
@@ -51,9 +49,9 @@ class Archive extends Resource
     public static $title = 'id';
 
     public static function indexQuery(NovaRequest $request, $query)
-{
-    return $query->where('current_stock', 0);
-}
+    {
+        return $query->where('current_stock', 0);
+    }
 
     /**
      * The columns that should be searched.
@@ -62,6 +60,8 @@ class Archive extends Resource
      */
     public static $search = [
         'id',
+        'sheet_id',
+        'name',
     ];
 
     /**
@@ -70,20 +70,28 @@ class Archive extends Resource
      * @param  \Illuminate\Http\Request  $request
      * @return array
      */
-public function fields(Request $request)
-{
-    return [
+    public function fields(Request $request)
+    {
+        return [
+            Text::make('PID', 'sheet_id')->sortable(),
 
-        Text::make('PID', 'sheet_id')->sortable(),
+            Text::make('Name'),
 
-        Text::make('Name'),
+            // Image column placed beside the Name column
+            Text::make('Image', function () {
+                $img = $this->image;
+                // If it's a valid link, render thumbnail; otherwise show text/placeholder
+                if ($img && $img !== 'Image not yet found' && filter_var($img, FILTER_VALIDATE_URL)) {
+                    return '<img src="' . $img . '" width="60" style="border-radius: 4px;">';
+                }
+                return e($img ?? 'Image not yet found');
+            })->asHtml(),
 
-        DateTime::make('Archived At', function () {
-            return $this->updated_at;
-        }),
-
-    ];
-}
+            DateTime::make('Archived At', function () {
+                return $this->updated_at;
+            }),
+        ];
+    }
 
     /**
      * Get the cards available for the request.
@@ -97,7 +105,7 @@ public function fields(Request $request)
     }
 
     /**
-     * Get the filters available for the resource.
+     * Get the filters available for the request.
      *
      * @param  \Illuminate\Http\Request  $request
      * @return array
@@ -108,7 +116,7 @@ public function fields(Request $request)
     }
 
     /**
-     * Get the lenses available for the resource.
+     * Get the lenses available for the request.
      *
      * @param  \Illuminate\Http\Request  $request
      * @return array
@@ -117,13 +125,14 @@ public function fields(Request $request)
     {
         return [];
     }
+
     public function authorizedToDelete(Request $request)
     {
         return false;
     }
 
     /**
-     * Get the actions available for the resource.
+     * Get the actions available for the request.
      *
      * @param  \Illuminate\Http\Request  $request
      * @return array

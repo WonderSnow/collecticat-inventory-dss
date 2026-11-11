@@ -111,7 +111,7 @@ class AddToCart extends Action
             ]);
         }
 
-        return Action::message('Order validated successfully.');
+        return Action::message('Order added successfully.');
     }
 
     public function fields()

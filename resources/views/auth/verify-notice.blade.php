@@ -20,11 +20,7 @@
         {{-- RESEND VERIFICATION --}}
         <form method="POST" action="{{ route('verification.send') }}" class="mb-6">
             @csrf
-            <button
-                type="submit"
-                class="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg font-medium transition">
-                Resend Verification Code to Email
-            </button>
+            
         </form>
 
         <div class="border-t border-gray-200 my-6"></div>
