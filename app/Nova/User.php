@@ -110,14 +110,18 @@ class User extends Resource
                     return true;
                 }),
 
-            Text::make('Quota', function () {
-                if ($this->email === 'admin@yopmail.com') {
-                    return '—';
-                }
-                return $this->quota ?? '—';
-            })
-            ->sortable()
-            ->canSee(fn () => !$isArchived),
+            // 👇 Changed to Number field mapped to 'quota' column so admins can edit it
+            // Quota: Editable for all users except admin@yopmail.com
+            Number::make('Quota', 'quota')
+                ->sortable()
+                ->rules('nullable', 'integer', 'min:0')
+                ->canSee(fn () => !$isArchived)
+                ->displayUsing(function ($value) {
+                    return $this->email === 'admin@yopmail.com' ? '—' : $value;
+                })
+                ->withMeta([
+                    'readonly' => $this->email === 'admin@yopmail.com',
+                ]),
 
             Text::make('Daily Progress', function () {
                 if ($this->email === 'admin@yopmail.com') {
@@ -149,19 +153,16 @@ class User extends Resource
                 ->exceptOnForms()
                 ->hideFromIndex(),
 
-            // 👇 Add this field to show who created the account
             Text::make('Created By', function () {
                 if ($this->email === 'admin@yopmail.com') {
                     return '—';
                 }
 
-                // If you are tracking the creator via a column or relationship on your users table:
-                // (e.g., if you have a `created_by` foreign key column pointing to the admin's ID)
                 if (isset($this->creator) && $this->creator) {
                     return $this->creator->name;
                 }
 
-                return 'Inventory Administrator'; // Fallback name
+                return 'Inventory Administrator';
             })->hideFromIndex(),
 
             Text::make('Date Archived', function () {
@@ -183,12 +184,10 @@ class User extends Resource
         });
     }
 
-public function cards(Request $request)
-{
-    return [
-        // Add any cards you want to display on the User resource page here
-    ];
-}
+    public function cards(Request $request)
+    {
+        return [];
+    }
 
     public function filters(Request $request)
     {
