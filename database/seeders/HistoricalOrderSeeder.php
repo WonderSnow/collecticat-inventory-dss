@@ -13,9 +13,6 @@ class HistoricalOrderSeeder extends Seeder
     public function run()
     {
         $employeeId = User::where('role', User::ROLE_EMPLOYEE)->first()?->id ?? User::first()?->id ?? 1;
-        
-        // Fetch only 100 randomized products
-        $products = Product::inRandomOrder()->limit(100)->get();
 
         // Target: 100 historical orders per product per year over a 2-year span (200 total per product)
         $ordersPerYear = 100;
