@@ -172,7 +172,7 @@ function processDailyData(labels, sales, revenue = []) {
 
     let newLabels = trimmedLabels.map(l => new Date(l).getDate());
 
-    const latestDate = new Date(Math.max(...trimmedLabels.map(d => new Date(d))));
+    const latestDate = trimmedLabels.length ? new Date(Math.max(...trimmedLabels.map(d => new Date(d)))) : new Date();
     const monthYear = `${String(latestDate.getMonth()+1).padStart(2,'0')}-${latestDate.getFullYear()}`;
 
     return { 
@@ -198,10 +198,8 @@ function processWeeklyData(labels, sales, revenue = [], stocks = []) {
         });
     });
 
-    // Sort chronologically from earliest to latest
     combined.sort((a, b) => a.dateObj - b.dateObj);
 
-    // Remove duplicates if any exist for the same finalDate
     let uniqueMap = new Map();
     combined.forEach(item => {
         uniqueMap.set(item.label, item);
@@ -390,6 +388,53 @@ function loadTrend(type, monthValue = null) {
             const ctx = document.getElementById('chart').getContext('2d');
             const selector = document.getElementById('monthSelector');
 
+            let productPrice = Number({{ $product->price ?? 0 }});
+            document.getElementById('productPrice').innerText =
+                `Product Price: ₱${productPrice.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+
+            // ✅ SAFETY GUARD: Prevent NaN-NaN crashes when data is empty or all zeros
+            if (!data.labels || data.labels.length === 0 || !data.sales || data.sales.every(s => Number(s) === 0)) {
+                document.getElementById('totalSales').innerText = `Total Orders Completed: 0`;
+                document.getElementById('totalRevenue').innerText = `Total Revenue: ₱0.00`;
+                document.getElementById('revenueRate').innerText = `Revenue Rate: ₱0.00/${type}`;
+                document.getElementById('totalStocks').innerText = `Total Stocks Sold: 0`;
+                document.getElementById('salesRate').innerText = `Stocks Sold: 0/${type}`;
+
+                chart = new Chart(ctx, {
+                    type: chartType,
+                    data: {
+                        labels: ['No Data Available'],
+                        datasets: [{
+                            label: 'Completed Order Volume',
+                            data: [0],
+                            borderColor: '#60a5fa',
+                            backgroundColor: chartType === 'bar' ? '#60a5fa' : 'rgba(96,165,250,0.15)',
+                            borderWidth: 3
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            x: {
+                                title: { display: true, text: 'Date', color: theme.text, font: { size: 16, weight: 'bold' } },
+                                ticks: { color: theme.text },
+                                grid: { color: theme.grid }
+                            },
+                            y: {
+                                beginAtZero: true,
+                                min: 0,
+                                title: { display: true, text: 'Orders', color: theme.text, font: { size: 16, weight: 'bold' } },
+                                ticks: { color: theme.text },
+                                grid: { color: theme.grid }
+                            }
+                        }
+                    }
+                });
+                selector.style.display = 'none';
+                return;
+            }
+
             if (type === 'year') {
                 selectedMonth = null;
                 selector.style.display = 'none';
@@ -473,7 +518,6 @@ function loadTrend(type, monthValue = null) {
                 stocks = filtered.stocks;
                 revenue = filtered.revenue;
 
-                // Find overlapping or boundary week if needed
                 const previousWeek = data.labels.find(label => {
                     if (!label.includes(' - ')) return false;
 
@@ -516,7 +560,6 @@ function loadTrend(type, monthValue = null) {
                     revenue = retry.revenue;
                 }
 
-                // Process and chronologically sort data
                 const processed = processWeeklyData(labels, sales, revenue, stocks);
                 labels = processed.labels;
                 sales = processed.sales;
@@ -633,10 +676,6 @@ function loadTrend(type, monthValue = null) {
 
             let rawRevenueRate = totalRevenueAmount / countOfDays;
             let formattedRevenueRate = rawRevenueRate.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
-
-            let productPrice = Number({{ $product->price ?? 0 }});
-            document.getElementById('productPrice').innerText =
-                `Product Price: ₱${productPrice.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
 
             document.getElementById('totalSales').innerText =
                 `Total Orders Completed: ${displayedTotalOrders.toLocaleString()}`;
