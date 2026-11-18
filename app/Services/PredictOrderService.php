@@ -5,7 +5,6 @@ namespace App\Services;
 use App\Models\Product;
 use App\Models\OrderItem;
 use App\Models\Prediction;
-use Phpml\Regression\LeastSquares;
 use Carbon\Carbon;
 use Exception;
 use Log;
@@ -28,7 +27,7 @@ class PredictOrderService
             $alpha = $product->stockout ?? 0;
 
             // --- 1. FETCH SALES BASED ON PERIOD -------------------------
-            $sales = OrderItem::selectRaw("
+            $salesQuery = OrderItem::selectRaw("
                 SUM(qty) as total_qty,
                 CASE
                     WHEN '$period' = 'day' THEN DATE(created_at)
@@ -42,53 +41,53 @@ class PredictOrderService
             ->orderBy('period')
             ->get();
 
-            if ($sales->isEmpty()) {
+            if ($salesQuery->isEmpty()) {
                 return null;
             }
 
-            $start = $sales->first()->period;
-            $end   = $sales->last()->period;
+            $start = $salesQuery->first()->period;
+            $end   = $salesQuery->last()->period;
 
-            // --- 2. GENERATE INTERVALS ---------------------------------
-            $intervals = $this->generateIntervals($period, $start, $end, $predict_intervals);
+            // Map existing sales by period key for quick lookup
+            $salesMap = $salesQuery->pluck('total_qty', 'period')->toArray();
 
-            // --- 3. PREPARE DATA FOR TRAINING --------------------------
-            $_period = [];
+            // --- 2. GENERATE ALL HISTORICAL & FUTURE INTERVALS ------------
+            $historicalIntervals = $this->generateHistoricalIntervals($period, $start, $end);
+            $futureIntervals = $this->generateFutureIntervals($period, $end, $predict_intervals);
+
+            // --- 3. PREPARE DATA (WITH ZERO-FILLING) -------------------
             $_orders = [];
-            $index = 1;
 
-            foreach ($sales as $sale) {
-                $_period[] = $index++;
-                $_orders[] = $sale->total_qty ?? 0;
+            foreach ($historicalIntervals as $intervalKey) {
+                // Explicitly fill 0 if no sales occurred on this date/period
+                $_orders[] = isset($salesMap[$intervalKey]) ? (float) $salesMap[$intervalKey] : 0.0;
             }
 
-            $samples = array_map(fn($d) => [$d], $_period);
-
-            // --- 4. TRAIN REGRESSION MODEL -----------------------------
-            $regression = new LeastSquares();
-            $regression->train($samples, $_orders);
+            // --- 4. MOVING AVERAGE CALCULATION -------------------------
+            // Look at a recent window (e.g., last 7 intervals) to capture baseline demand smoothing
+            $window = 7;
+            $recentSales = array_slice($_orders, -$window);
+            $avgSales = count($recentSales) > 0 ? (array_sum($recentSales) / count($recentSales)) : 0;
 
             // --- 5. PREDICT FUTURE INTERVALS ---------------------------
             $predictions = [];
-            $lastIndex = $_period[count($_period) - 1];
-
             $actualSales = $_orders[count($_orders) - 1] ?? 0;
 
             for ($i = 0; $i < $predict_intervals; $i++) {
                 
-                //Linear or Polynomial Regression
-                $predicted_qty = $regression->predict([$lastIndex + $i + 1]);
+                // Use moving average baseline for future prediction
+                $predicted_qty = $avgSales;
 
                 // Lost demand heuristic
                 $lostDemand = max(0, ($predicted_qty - $actualSales) * $alpha);
                 
-                //Requirement Planning
-                $recommendedStock = max(0,($predicted_qty + $lostDemand) - $product->current_stock + $safetyMargin);
+                // Requirement Planning
+                $recommendedStock = max(0, ($predicted_qty + $lostDemand) - $product->current_stock + $safetyMargin);
 
                 $predictions[] = [
-                'period' => $intervals[count($sales) + $i],
-                'sales_quantity' => $predicted_qty,
-                'stock_recommendation' => (int) $recommendedStock,
+                    'period' => $futureIntervals[$i],
+                    'sales_quantity' => max(0, $predicted_qty), // Ensure non-negative sales
+                    'stock_recommendation' => (int) $recommendedStock,
                 ];
             }
 
@@ -117,60 +116,72 @@ class PredictOrderService
     }
 
     /**
-     * Generate time intervals for prediction
+     * Generate all historical intervals between start and end dates inclusive.
      */
-    private function generateIntervals($period, $start, $end, $predict_intervals)
+    private function generateHistoricalIntervals($period, $start, $end)
     {
         $intervals = [];
 
         if ($period === 'day') {
             $current = Carbon::parse($start);
             $endDate = Carbon::parse($end);
-
             while ($current->lte($endDate)) {
-                $intervals[] = $current->toDateString();
-                $current->addDay();
-            }
-
-            for ($i = 0; $i < $predict_intervals; $i++) {
                 $intervals[] = $current->toDateString();
                 $current->addDay();
             }
         } elseif ($period === 'week') {
             $current = Carbon::parse($start . ' Sunday');
             $endDate = Carbon::parse($end . ' Sunday');
-
             while ($current->lte($endDate)) {
-                $intervals[] = $current->format('oW');
-                $current->addWeek();
-            }
-
-            for ($i = 0; $i < $predict_intervals; $i++) {
                 $intervals[] = $current->format('oW');
                 $current->addWeek();
             }
         } elseif ($period === 'month') {
             $current = Carbon::parse($start . '-01');
             $endDate = Carbon::parse($end . '-01');
-
             while ($current->lte($endDate)) {
-                $intervals[] = $current->format('Y-m');
-                $current->addMonth();
-            }
-
-            for ($i = 0; $i < $predict_intervals; $i++) {
                 $intervals[] = $current->format('Y-m');
                 $current->addMonth();
             }
         } elseif ($period === 'year') {
             $current = Carbon::createFromDate($start);
             $endDate = Carbon::createFromDate($end);
-
             while ($current->lte($endDate)) {
                 $intervals[] = $current->format('Y');
                 $current->addYear();
             }
+        }
 
+        return $intervals;
+    }
+
+    /**
+     * Generate future prediction intervals after the end date.
+     */
+    private function generateFutureIntervals($period, $end, $predict_intervals)
+    {
+        $intervals = [];
+
+        if ($period === 'day') {
+            $current = Carbon::parse($end)->addDay();
+            for ($i = 0; $i < $predict_intervals; $i++) {
+                $intervals[] = $current->toDateString();
+                $current->addDay();
+            }
+        } elseif ($period === 'week') {
+            $current = Carbon::parse($end . ' Sunday')->addWeek();
+            for ($i = 0; $i < $predict_intervals; $i++) {
+                $intervals[] = $current->format('oW');
+                $current->addWeek();
+            }
+        } elseif ($period === 'month') {
+            $current = Carbon::parse($end . '-01')->addMonth();
+            for ($i = 0; $i < $predict_intervals; $i++) {
+                $intervals[] = $current->format('Y-m');
+                $current->addMonth();
+            }
+        } elseif ($period === 'year') {
+            $current = Carbon::createFromDate($end)->addYear();
             for ($i = 0; $i < $predict_intervals; $i++) {
                 $intervals[] = $current->format('Y');
                 $current->addYear();
