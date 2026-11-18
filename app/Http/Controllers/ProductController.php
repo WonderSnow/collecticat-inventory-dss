@@ -89,9 +89,10 @@ class ProductController extends Controller
         switch ($interval) {
 
             case 'day':
-                // ✅ Calculates sum of qty * price for exact historical revenue
-                $rawData = $query->selectRaw('DATE(created_at) as label, COUNT(*) as sales, SUM(qty) as stocks, SUM(qty * price) as revenue')
+                $rawData = (clone $query)
+                    ->selectRaw('DATE(created_at) as label, COUNT(*) as sales, SUM(qty) as stocks, SUM(qty * price) as revenue')
                     ->groupBy('label')
+                    ->orderBy('label', 'asc') // ✅ FIX: Sort chronologically so first() <= last()
                     ->get()
                     ->keyBy('label');
 
@@ -104,8 +105,8 @@ class ProductController extends Controller
                     ]);
                 }
 
-                $start = \Carbon\Carbon::parse($rawData->keys()->first());
-                $end = \Carbon\Carbon::parse($rawData->keys()->last());
+                $start = \Carbon\Carbon::parse($rawData->keys()->min());
+                $end = \Carbon\Carbon::parse($rawData->keys()->max());
 
                 $period = \Carbon\CarbonPeriod::create($start, $end);
 
@@ -118,18 +119,9 @@ class ProductController extends Controller
                     $formatted = $date->format('Y-m-d');
 
                     $labels[] = $formatted;
-
-                    $sales[] = isset($rawData[$formatted])
-                        ? $rawData[$formatted]->sales
-                        : 0;
-
-                    $stocks[] = isset($rawData[$formatted])
-                        ? $rawData[$formatted]->stocks
-                        : 0;
-
-                    $revenue[] = isset($rawData[$formatted])
-                        ? floatval($rawData[$formatted]->revenue)
-                        : 0;
+                    $sales[] = isset($rawData[$formatted]) ? (int) $rawData[$formatted]->sales : 0;
+                    $stocks[] = isset($rawData[$formatted]) ? (int) $rawData[$formatted]->stocks : 0;
+                    $revenue[] = isset($rawData[$formatted]) ? floatval($rawData[$formatted]->revenue) : 0;
                 }
 
                 return response()->json([
@@ -140,7 +132,8 @@ class ProductController extends Controller
                 ]);
 
             case 'week':
-                $data = $query
+                $data = (clone $query)
+                    ->orderBy('created_at', 'asc')
                     ->get()
                     ->groupBy(function ($item) {
                         $date = \Carbon\Carbon::parse($item->created_at);
@@ -153,41 +146,45 @@ class ProductController extends Controller
                     ->map(function ($items) {
                         return [
                             'sales' => $items->count(),
-                            'stocks' => $items->sum('qty'),
-                            'revenue' => $items->sum(function($item) {
+                            'stocks' => (int) $items->sum('qty'),
+                            'revenue' => floatval($items->sum(function ($item) {
                                 return $item->qty * $item->price;
-                            })
+                            }))
                         ];
                     });
 
                 return response()->json([
-                    'labels' => $data->keys(),
-                    'sales' => $data->pluck('sales'),
-                    'stocks' => $data->pluck('stocks'),
-                    'revenue' => $data->pluck('revenue')
+                    'labels' => $data->keys()->values(),
+                    'sales' => $data->pluck('sales')->values(),
+                    'stocks' => $data->pluck('stocks')->values(),
+                    'revenue' => $data->pluck('revenue')->values()
                 ]);
 
             case 'month':
-                $data = $query->selectRaw('DATE_FORMAT(created_at,"%Y-%m") as label, COUNT(*) as sales, SUM(qty) as stocks, SUM(qty * price) as revenue')
+                $data = (clone $query)
+                    ->selectRaw('DATE_FORMAT(created_at, "%Y-%m") as label, COUNT(*) as sales, SUM(qty) as stocks, SUM(qty * price) as revenue')
                     ->groupBy('label')
+                    ->orderBy('label', 'asc')
                     ->get();
 
                 return response()->json([
                     'labels' => $data->pluck('label'),
-                    'sales' => $data->pluck('sales'),
-                    'stocks' => $data->pluck('stocks'),
+                    'sales' => $data->pluck('sales')->map(fn($val) => (int) $val),
+                    'stocks' => $data->pluck('stocks')->map(fn($val) => (int) $val),
                     'revenue' => $data->pluck('revenue')->map(fn($val) => floatval($val))
                 ]);
 
             case 'year':
-                $data = $query->selectRaw('YEAR(created_at) as label, COUNT(*) as sales, SUM(qty) as stocks, SUM(qty * price) as revenue')
+                $data = (clone $query)
+                    ->selectRaw('YEAR(created_at) as label, COUNT(*) as sales, SUM(qty) as stocks, SUM(qty * price) as revenue')
                     ->groupBy('label')
+                    ->orderBy('label', 'asc')
                     ->get();
 
                 return response()->json([
                     'labels' => $data->pluck('label'),
-                    'sales' => $data->pluck('sales'),
-                    'stocks' => $data->pluck('stocks'),
+                    'sales' => $data->pluck('sales')->map(fn($val) => (int) $val),
+                    'stocks' => $data->pluck('stocks')->map(fn($val) => (int) $val),
                     'revenue' => $data->pluck('revenue')->map(fn($val) => floatval($val))
                 ]);
         }
