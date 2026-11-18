@@ -44,11 +44,19 @@ class Order extends Resource
         }
 
         return $query->where(function ($q) use ($search) {
-            // Search Order ID
             $q->where('id', 'like', "%{$search}%")
               // Search Employee Name in the related 'users' table
               ->orWhereHas('employee', function ($subQuery) use ($search) {
                   $subQuery->where('name', 'like', "%{$search}%");
+              })
+              // Search inside Particulars / Order Items (e.g. matching product names or item details)
+              // Search inside Particulars / Order Items (matching product names only)
+              ->orWhereHas('orderItems', function ($itemQuery) use ($search) {
+                  if (method_exists((new \App\Models\OrderItem), 'product')) {
+                      $itemQuery->whereHas('product', function ($productQuery) use ($search) {
+                          $productQuery->where('name', 'like', "%{$search}%");
+                      });
+                  }
               });
         });
     }

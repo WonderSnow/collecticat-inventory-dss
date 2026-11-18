@@ -119,6 +119,7 @@ html[data-theme="light"] .stockout-box {
             <p id="productPrice" class="font-semibold"></p>
             <p id="totalSales"></p>
             <p id="totalRevenue" class="font-semibold text-green-400"></p>
+            <p id="revenueRate" class="font-semibold text-green-400"></p> <!-- ✅ Added Revenue Rate -->
             <p id="totalStocks"></p> 
             <p id="salesRate"></p>
         </div>
@@ -183,21 +184,37 @@ function processDailyData(labels, sales, revenue = []) {
     };
 }
 
-function processWeeklyData(labels, sales, revenue = []) {
-    let newLabels = [];
-    let newSales = [];
-    let newRevenue = [];
-    let seen = new Set();
+function processWeeklyData(labels, sales, revenue = [], stocks = []) {
+    let combined = [];
+    
     labels.forEach((label, index) => {
         let finalDate = label.includes(' - ') ? label.split(' - ')[1] : label;
-        if(!seen.has(finalDate)){
-            seen.add(finalDate);
-            newLabels.push(finalDate);
-            newSales.push(sales[index]);
-            if(revenue.length) newRevenue.push(revenue[index]);
-        }
+        combined.push({
+            label: finalDate,
+            dateObj: new Date(finalDate),
+            sale: sales[index],
+            revenue: revenue.length ? revenue[index] : 0,
+            stock: stocks.length ? stocks[index] : null
+        });
     });
-    return { labels: newLabels, sales: newSales, revenue: newRevenue };
+
+    // Sort chronologically from earliest to latest
+    combined.sort((a, b) => a.dateObj - b.dateObj);
+
+    // Remove duplicates if any exist for the same finalDate
+    let uniqueMap = new Map();
+    combined.forEach(item => {
+        uniqueMap.set(item.label, item);
+    });
+
+    let sortedUnique = Array.from(uniqueMap.values());
+
+    return {
+        labels: sortedUnique.map(i => i.label),
+        sales: sortedUnique.map(i => i.sale),
+        revenue: sortedUnique.map(i => i.revenue),
+        stocks: sortedUnique.map(i => i.stock)
+    };
 }
 
 /* ===== MONTH SELECTOR ===== */
@@ -456,6 +473,7 @@ function loadTrend(type, monthValue = null) {
                 stocks = filtered.stocks;
                 revenue = filtered.revenue;
 
+                // Find overlapping or boundary week if needed
                 const previousWeek = data.labels.find(label => {
                     if (!label.includes(' - ')) return false;
 
@@ -478,10 +496,13 @@ function loadTrend(type, monthValue = null) {
                     const index = data.labels.indexOf(previousWeek);
                     const [, endStr] = previousWeek.split(' - ');
 
-                    labels.unshift(endStr);          
-                    sales.unshift(data.sales[index]); 
+                    labels.push(endStr);          
+                    sales.push(data.sales[index]); 
                     if(data.revenue && data.revenue[index] !== undefined) {
-                        revenue.unshift(data.revenue[index]);
+                        revenue.push(data.revenue[index]);
+                    }
+                    if(data.stocks && data.stocks[index] !== undefined) {
+                        stocks.push(data.stocks[index]);
                     }
                 }
 
@@ -495,10 +516,12 @@ function loadTrend(type, monthValue = null) {
                     revenue = retry.revenue;
                 }
 
-                const processed = processWeeklyData(labels, sales, revenue);
+                // Process and chronologically sort data
+                const processed = processWeeklyData(labels, sales, revenue, stocks);
                 labels = processed.labels;
                 sales = processed.sales;
                 revenue = processed.revenue;
+                stocks = processed.stocks;
 
                 const [y, m] = selectedMonth.split('-');
                 const formattedMonth = new Date(y, m - 1).toLocaleString('default', {
@@ -518,7 +541,7 @@ function loadTrend(type, monthValue = null) {
                 data: {
                     labels: labels,
                     datasets: [{
-                        label: 'Transaction Volume',
+                        label: 'Completed Order Volume',
                         data: sales,
                         borderColor: '#60a5fa',
                         backgroundColor: chartType==='bar' ? '#60a5fa':'rgba(96,165,250,0.15)',
@@ -608,6 +631,9 @@ function loadTrend(type, monthValue = null) {
             let rawRate = displayedTotalStocks / countOfDays;
             let formattedRate = Number.isInteger(rawRate) ? rawRate.toLocaleString() : rawRate.toFixed(2);
 
+            let rawRevenueRate = totalRevenueAmount / countOfDays;
+            let formattedRevenueRate = rawRevenueRate.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+
             let productPrice = Number({{ $product->price ?? 0 }});
             document.getElementById('productPrice').innerText =
                 `Product Price: ₱${productPrice.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
@@ -616,12 +642,15 @@ function loadTrend(type, monthValue = null) {
                 `Total Orders Completed: ${displayedTotalOrders.toLocaleString()}`;
 
             document.getElementById('totalRevenue').innerText =
-                `Total Sales: ₱${totalRevenueAmount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+                `Total Revenue: ₱${totalRevenueAmount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+
+            const trendTypeDisplay = document.getElementById('trendType').value;
+            document.getElementById('revenueRate').innerText =
+                `Revenue Rate: ₱${formattedRevenueRate}/${trendTypeDisplay}`;
 
             document.getElementById('totalStocks').innerText =
                 `Total Stocks Sold: ${displayedTotalStocks.toLocaleString()}`;
 
-            const trendTypeDisplay = document.getElementById('trendType').value;
             document.getElementById('salesRate').innerText =
                 `Stocks Sold: ${formattedRate}/${trendTypeDisplay}`;
         });
