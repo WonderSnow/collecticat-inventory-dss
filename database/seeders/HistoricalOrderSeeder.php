@@ -13,14 +13,16 @@ class HistoricalOrderSeeder extends Seeder
     public function run()
     {
         $employeeId = User::where('role', User::ROLE_EMPLOYEE)->first()?->id ?? User::first()?->id ?? 1;
-        $products = Product::all();
+        
+        // Fetch only 100 randomized products
+        $products = Product::inRandomOrder()->limit(100)->get();
 
         // Target: 100 historical orders per product per year over a 2-year span (200 total per product)
         $ordersPerYear = 100;
         $yearsToCover = 2;
         $totalOrdersPerProduct = $ordersPerYear * $yearsToCover;
 
-        $this->command->info("Starting historical data generation ({$ordersPerYear} per product per year)...");
+        $this->command->info("Starting historical data generation for " . $products->count() . " randomized products ({$ordersPerYear} per product per year)...");
 
         foreach ($products as $product) {
             $this->command->info("Seeding orders for product: {$product->name}");
@@ -55,7 +57,6 @@ class HistoricalOrderSeeder extends Seeder
             }
 
             // Fetch the newly inserted orders for this product run to map order items
-            // We fetch orders created within the last 2 years that match our employee ID
             $insertedOrders = DB::table('orders')
                 ->where('employee_id', $employeeId)
                 ->where('created_at', '>=', Carbon::now()->subYears($yearsToCover))
