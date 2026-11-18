@@ -173,7 +173,15 @@ class InventoryAudit extends Resource
 
             BelongsTo::make('User', 'user', User::class),
 
-            DateTime::make('Created At'),
+            DateTime::make('Created At', function () {
+                // If this audit record is tied to a product, display the product's original created_at timestamp
+                if ($this->product_id && $product = \App\Models\Product::find($this->product_id)) {
+                    return $product->created_at;
+                }
+                
+                // Fallback to the audit record's own timestamp
+                return $this->created_at;
+            })->sortable(),
         ];
     }
 
