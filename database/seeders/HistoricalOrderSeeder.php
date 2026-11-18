@@ -13,72 +13,82 @@ class HistoricalOrderSeeder extends Seeder
     public function run()
     {
         $employeeId = User::where('role', User::ROLE_EMPLOYEE)->first()?->id ?? User::first()?->id ?? 1;
-        
-        // FIX: Fetch all products so none of them are left empty
         $products = Product::all();
 
-        // Target: 100 historical orders per product per year over a 2-year span (200 total per product)
-        $ordersPerYear = 200;
+        if ($products->isEmpty()) {
+            $this->command->warn('No products found. Please seed products first.');
+            return;
+        }
+
+        $this->command->info('Starting optimized historical order generation...');
+
         $yearsToCover = 2;
-        $totalOrdersPerProduct = $ordersPerYear * $yearsToCover;
+        $totalOrdersToGenerate = 2000; // Generates a robust, realistic pool of orders across 2 years
 
-        $this->command->info("Starting historical data generation for " . $products->count() . " products ({$ordersPerYear} per product per year)...");
+        $ordersData = [];
+        for ($i = 0; $i < $totalOrdersToGenerate; $i++) {
+            // Pick a random timestamp within the last 2 years
+            $randomTime = Carbon::now()
+                ->subYears($yearsToCover)
+                ->addSeconds(rand(0, $yearsToCover * 365 * 24 * 60 * 60))
+                ->setHour(rand(8, 20))
+                ->setMinute(rand(0, 59))
+                ->setSecond(rand(0, 59));
 
-        foreach ($products as $product) {
-            $this->command->info("Seeding orders for product: {$product->name}");
-            
-            $ordersData = [];
-            $orderItemsData = [];
+            if ($randomTime->isFuture()) {
+                $randomTime = Carbon::now();
+            }
 
-            for ($i = 0; $i < $totalOrdersPerProduct; $i++) {
-                // Pick a random timestamp within the last 2 years
-                $randomTime = Carbon::now()
-                    ->subYears($yearsToCover)
-                    ->addSeconds(rand(0, $yearsToCover * 365 * 24 * 60 * 60))
-                    ->setHour(rand(8, 20))
-                    ->setMinute(rand(0, 59))
-                    ->setSecond(rand(0, 59));
+            $ordersData[] = [
+                'employee_id' => $employeeId,
+                'status' => 'CONFIRMED',
+                'created_at' => $randomTime,
+                'updated_at' => $randomTime,
+            ];
+        }
 
-                if ($randomTime->isFuture()) {
-                    $randomTime = Carbon::now();
-                }
+        $this->command->info('Inserting orders and capturing IDs...');
 
-                $ordersData[] = [
-                    'employee_id' => $employeeId,
-                    'status' => 'CONFIRMED',
-                    'created_at' => $randomTime,
-                    'updated_at' => $randomTime,
+        $orderIds = [];
+        // Insert orders in chunks and safely capture their generated IDs
+        foreach (array_chunk($ordersData, 500) as $chunk) {
+            foreach ($chunk as $order) {
+                $orderId = DB::table('orders')->insertGetId($order);
+                $orderIds[] = [
+                    'id' => $orderId,
+                    'created_at' => $order['created_at']
                 ];
             }
+        }
 
-            // Bulk insert orders in chunks of 500 for performance
-            foreach (array_chunk($ordersData, 500) as $chunk) {
-                DB::table('orders')->insert($chunk);
-            }
+        $this->command->info('Generating and attaching order items...');
 
-            // Fetch the newly inserted orders for this product run to map order items
-            $insertedOrders = DB::table('orders')
-                ->where('employee_id', $employeeId)
-                ->where('created_at', '>=', Carbon::now()->subYears($yearsToCover))
-                ->orderBy('id', 'desc')
-                ->limit(count($ordersData))
-                ->get();
+        $orderItemsData = [];
+        foreach ($orderIds as $order) {
+            // Assign 1 to 4 random products per order to simulate real customer baskets
+            $selectedProducts = $products->random(rand(1, min(4, $products->count())));
 
-            foreach ($insertedOrders as $order) {
+            foreach ($selectedProducts as $product) {
                 $orderItemsData[] = [
-                    'order_id' => $order->id,
+                    'order_id' => $order['id'],
                     'product_id' => $product->id,
-                    'qty' => rand(1, 5),
+                    'qty' => rand(1, 3),
                     'price' => $product->price,
-                    'created_at' => $order->created_at,
-                    'updated_at' => $order->updated_at,
+                    'created_at' => $order['created_at'],
+                    'updated_at' => $order['created_at'],
                 ];
             }
 
-            // Bulk insert order items in chunks of 500
-            foreach (array_chunk($orderItemsData, 500) as $chunk) {
-                DB::table('order_items')->insert($chunk);
+            // Bulk insert in chunks of 500 to optimize memory and prevent packet size limits
+            if (count($orderItemsData) >= 500) {
+                DB::table('order_items')->insert($orderItemsData);
+                $orderItemsData = [];
             }
+        }
+
+        // Insert any leftover items
+        if (!empty($orderItemsData)) {
+            DB::table('order_items')->insert($orderItemsData);
         }
 
         $this->command->info('Historical order seeding completed successfully!');
