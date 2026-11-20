@@ -6,6 +6,7 @@ use Illuminate\Console\Command;
 use App\Models\Prediction;
 use App\Models\OrderItem;
 use Carbon\Carbon;
+use Throwable;
 
 class ValidatePredictions extends Command
 {
@@ -102,13 +103,29 @@ class ValidatePredictions extends Command
     private function isIntervalCompleted(Prediction $pred): bool
     {
         $now = Carbon::now();
+        $value = trim((string) $pred->prediction_for);
 
-        return match ($pred->interval) {
-            'day'   => Carbon::parse($pred->prediction_for)->lt($now->copy()->startOfDay()),
-            'month' => Carbon::createFromFormat('Y-m', $pred->prediction_for)->startOfMonth()->lt($now->copy()->startOfMonth()),
-            'year'  => (int) $pred->prediction_for < (int) $now->year,
-            default => Carbon::parse($pred->prediction_for)->lte($now->toDateString()),
-        };
+        try {
+            if ($pred->interval === 'week' || preg_match('/^\d{6}$/', $value)) {
+                $year = (int) substr($value, 0, 4);
+                $week = (int) substr($value, 4, 2);
+                $weekEnd = Carbon::now()->setISODate($year, $week)->endOfWeek();
+                return $weekEnd->lt($now->copy()->startOfWeek());
+            }
+
+            if ($pred->interval === 'month' || preg_match('/^\d{4}-\d{2}$/', $value)) {
+                $monthStart = Carbon::createFromFormat('Y-m', $value)->startOfMonth();
+                return $monthStart->lt($now->copy()->startOfMonth());
+            }
+
+            if ($pred->interval === 'year' || preg_match('/^\d{4}$/', $value)) {
+                return (int) $value < (int) $now->year;
+            }
+
+            return Carbon::parse($value)->lt($now->copy()->startOfDay());
+        } catch (Throwable $e) {
+            return false;
+        }
     }
 
     private function getActualSales(Prediction $pred)
@@ -121,21 +138,22 @@ class ValidatePredictions extends Command
                   ->where('orders.status', \App\Models\Order::STATUS_CONFIRMED);
         }
 
-        switch ($pred->interval) {
-            case 'month':
-                [$year, $month] = explode('-', $pred->prediction_for);
-                $query->whereYear('order_items.created_at', (int) $year)
-                      ->whereMonth('order_items.created_at', (int) $month);
-                break;
+        $value = trim((string) $pred->prediction_for);
 
-            case 'year':
-                $query->whereYear('order_items.created_at', (int) $pred->prediction_for);
-                break;
-
-            case 'day':
-            default:
-                $query->whereDate('order_items.created_at', $pred->prediction_for);
-                break;
+        if ($pred->interval === 'week' || preg_match('/^\d{6}$/', $value)) {
+            $year = (int) substr($value, 0, 4);
+            $week = (int) substr($value, 4, 2);
+            $start = Carbon::now()->setISODate($year, $week)->startOfWeek();
+            $end = Carbon::now()->setISODate($year, $week)->endOfWeek();
+            $query->whereBetween('order_items.created_at', [$start, $end]);
+        } elseif ($pred->interval === 'month' || preg_match('/^\d{4}-\d{2}$/', $value)) {
+            [$year, $month] = explode('-', $value);
+            $query->whereYear('order_items.created_at', (int) $year)
+                  ->whereMonth('order_items.created_at', (int) $month);
+        } elseif ($pred->interval === 'year' || preg_match('/^\d{4}$/', $value)) {
+            $query->whereYear('order_items.created_at', (int) $value);
+        } else {
+            $query->whereDate('order_items.created_at', $value);
         }
 
         return $query->sum('order_items.qty');
