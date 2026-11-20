@@ -16,7 +16,7 @@ class ValidatePredictions extends Command
     {
         $this->info('Starting prediction validation...');
 
-        $predictions = Prediction::with('product')->orderBy('prediction_for')->get();
+        $predictions = Prediction::orderBy('prediction_for')->get();
         $pastPredictions = $predictions->filter(function ($pred) {
             return $this->isIntervalCompleted($pred);
         });
