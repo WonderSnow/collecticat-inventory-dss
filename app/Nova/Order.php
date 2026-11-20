@@ -23,12 +23,12 @@ class Order extends Resource
     }
 
     /**
-     * Build a "search" query for the given resource.
-     * This is the dedicated method for Nova 3 search logic.
+- Build a "search" query for the given resource.
+- This is the dedicated method for Nova 3 search logic.
      */
     /**
-     * Build a "search" query for the given resource.
-     * Updated to match the exact signature required by your Nova version.
+- Build a "search" query for the given resource.
+- Updated to match the exact signature required by your Nova version.
      */
     public static function buildIndexQuery(
         NovaRequest $request, 
@@ -45,6 +45,7 @@ class Order extends Resource
 
         return $query->where(function ($q) use ($search) {
             $q->where('id', 'like', "%{$search}%")
+              ->orWhere('created_at', 'like', "%{$search}%")
               // Search Employee Name in the related 'users' table
               ->orWhereHas('employee', function ($subQuery) use ($search) {
                   $subQuery->where('name', 'like', "%{$search}%");
@@ -77,23 +78,23 @@ class Order extends Resource
         return false;
     }
     /**
-     * The model the resource corresponds to.
+- The model the resource corresponds to.
      *
-     * @var string
+- @var string
      */
     public static $model = \App\Models\Order::class;
 
     /**
-     * The single value that should be used to represent the resource when being displayed.
+- The single value that should be used to represent the resource when being displayed.
      *
-     * @var string
+- @var string
      */
     public static $title = 'id';
 
     /**
-     * The columns that should be searched.
+- The columns that should be searched.
      *
-     * @var array
+- @var array
      */
     public static $search = [
     ];
@@ -101,10 +102,10 @@ class Order extends Resource
     
 
     /**
-     * Get the fields displayed by the resource.
+- Get the fields displayed by the resource.
      *
-     * @param  \Illuminate\Http\Request  $request
-     * @return array
+- @param  \Illuminate\Http\Request  $request
+- @return array
      */
     public function fields(Request $request)
     {
@@ -141,10 +142,10 @@ class Order extends Resource
     }
 
     /**
-     * Get the cards available for the request.
+- Get the cards available for the request.
      *
-     * @param  \Illuminate\Http\Request  $request
-     * @return array
+- @param  \Illuminate\Http\Request  $request
+- @return array
      */
     public function cards(Request $request)
     {
@@ -152,10 +153,10 @@ class Order extends Resource
     }
 
     /**
-     * Get the filters available for the resource.
+- Get the filters available for the resource.
      *
-     * @param  \Illuminate\Http\Request  $request
-     * @return array
+- @param  \Illuminate\Http\Request  $request
+- @return array
      */
     public function filters(Request $request)
     {
@@ -163,10 +164,10 @@ class Order extends Resource
     }
 
     /**
-     * Get the lenses available for the resource.
+- Get the lenses available for the resource.
      *
-     * @param  \Illuminate\Http\Request  $request
-     * @return array
+- @param  \Illuminate\Http\Request  $request
+- @return array
      */
     public function lenses(Request $request)
     {
@@ -174,10 +175,10 @@ class Order extends Resource
     }
 
     /**
-     * Get the actions available for the resource.
+- Get the actions available for the resource.
      *
-     * @param  \Illuminate\Http\Request  $request
-     * @return array
+- @param  \Illuminate\Http\Request  $request
+- @return array
      */
     public function actions(Request $request)
     {
